@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GD Bot — Project Memory Graph</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+    --border: #30363d; --text: #e6edf3; --muted: #8b949e;
+    --blue: #58a6ff; --green: #3fb950; --orange: #f0883e;
+    --purple: #bc8cff; --red: #f85149; --yellow: #d29922;
+    --teal: #39d353; --pink: #ff7b72;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow-x: hidden; }
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+  /* NAV */
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 8px; height: 56px; position: sticky; top: 0; z-index: 100; }
+  nav .logo { font-size: 18px; font-weight: 700; color: var(--blue); margin-right: 16px; }
+  nav .tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); border: none; background: none; transition: all .2s; }
+  nav .tab:hover { color: var(--text); background: var(--surface2); }
+  nav .tab.active { color: var(--text); background: var(--surface2); border: 1px solid var(--border); }
+  /* SECTIONS */
+  .section { display: none; padding: 24px; }
+  .section.active { display: block; }
+  /* HERO */
+  .hero { text-align: center; padding: 48px 24px 32px; }
+  .hero h1 { font-size: 36px; font-weight: 800; background: linear-gradient(135deg, var(--blue), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { color: var(--muted); margin-top: 8px; font-size: 15px; }
+  /* GRID */
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  /* CARD */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  /* BADGE */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-blue { background: rgba(88,166,255,.15); color: var(--blue); }
+  .badge-green { background: rgba(63,185,80,.15); color: var(--green); }
+  .badge-orange { background: rgba(240,136,62,.15); color: var(--orange); }
+  .badge-purple { background: rgba(188,140,255,.15); color: var(--purple); }
+  .badge-red { background: rgba(248,81,73,.15); color: var(--red); }
+  .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .badge-teal { background: rgba(57,211,83,.15); color: var(--teal); }
+  /* TAG */
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  /* FLOW */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .flow-step { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; }
+  .flow-arrow { color: var(--muted); font-size: 16px; }
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  /* CODE */
+  code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 12px; font-family: 'Fira Code', monospace; color: var(--orange); }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-size: 12px; overflow-x: auto; line-height: 1.6; }
+  /* STAT */
+  .stat { text-align: center; }
+  .stat .num { font-size: 32px; font-weight: 800; }
+  .stat .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  /* SECTION TITLE */
+  .sec-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .sec-title span { font-size: 22px; }
+  /* GRAPH */
+  #graph-canvas { width: 100%; height: 680px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .tooltip { position: fixed; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 12px; pointer-events: none; z-index: 999; max-width: 260px; line-height: 1.6; }
+  /* TIMELINE */
+  .timeline { position: relative; padding-left: 24px; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 20px; }
+  .tl-dot { position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--surface); }
+  .tl-title { font-size: 13px; font-weight: 600; }
+  .tl-desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  /* SCORE BAR */
+  .score-bar { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .score-bar .label { font-size: 12px; color: var(--muted); width: 120px; flex-shrink: 0; }
+  .score-bar .bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .score-bar .fill { height: 100%; border-radius: 3px; }
+  .score-bar .val { font-size: 12px; color: var(--muted); width: 30px; text-align: right; }
+  /* ARCH DIAGRAM */
+  .arch { display: flex; gap: 2px; align-items: stretch; flex-wrap: wrap; }
+  .arch-layer { flex: 1; min-width: 180px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .arch-layer h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+  .arch-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; margin-bottom: 6px; }
+  /* RESPONSIVE */
+  @media (max-width: 600px) { nav { overflow-x: auto; } .hero h1 { font-size: 24px; } }
+</style>
+</head>
+<body>
+<div id="app">
+<nav>
+  <div class="logo">⚡ GD Bot</div>
+  <button class="tab active" onclick="showTab('overview')">Overview</button>
+  <button class="tab" onclick="showTab('architecture')">Architecture</button>
+  <button class="tab" onclick="showTab('graph')">Dependency Graph</button>
+  <button class="tab" onclick="showTab('techstack')">Tech Stack</button>
+  <button class="tab" onclick="showTab('api')">API Reference</button>
+  <button class="tab" onclick="showTab('workflow')">Workflows</button>
+  <button class="tab" onclick="showTab('ml')">ML Pipeline</button>
+  <button class="tab" onclick="showTab('database')">Database</button>
+  <button class="tab" onclick="showTab('design')">UI Design</button>
+  <button class="tab" onclick="showTab('files')">File Map</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ OVERVIEW ═══ -->
+<div id="tab-overview" class="section active">
+  <div class="hero">
+    <h1>GD Bot — Project Memory</h1>
+    <p>AI-powered Group Discussion platform with real-time WebRTC, speech analysis, and performance scoring</p>
+  </div>
+  <div class="grid grid-4" style="margin-bottom:24px">
+    <div class="card stat"><div class="num" style="color:var(--blue)">3</div><div class="lbl">Services</div></div>
+    <div class="card stat"><div class="num" style="color:var(--green)">28+</div><div class="lbl">API Endpoints</div></div>
+    <div class="card stat"><div class="num" style="color:var(--purple)">11</div><div class="lbl">Frontend Routes</div></div>
+    <div class="card stat"><div class="num" style="color:var(--orange)">3</div><div class="lbl">ML Models</div></div>
+  </div>
+  <div class="grid grid-3" style="margin-bottom:24px">
+    <div class="card">
+      <h3><span style="color:var(--blue)">🖥️</span> Frontend — React Client</h3>
+      <p>React 19 + TypeScript + TanStack Router. Real-time WebRTC video conferencing with Socket.io signaling. Radix UI + Tailwind CSS design system.</p>
+      <div style="margin-top:10px"><span class="badge badge-blue">Port 5173</span> <span class="badge badge-green">Vite 7</span> <span class="badge badge-purple">TypeScript 5.8</span></div>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--green)">⚙️</span> Backend — Node.js Server</h3>
+      <p>Express.js REST API + Socket.io WebRTC signaling. MongoDB persistence via Mongoose. JWT authentication, rate limiting, structured logging.</p>
+      <div style="margin-top:10px"><span class="badge badge-green">Port 4000</span> <span class="badge badge-orange">Express 4</span> <span class="badge badge-yellow">Socket.io 4</span></div>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--orange)">🧠</span> ML Server — Python FastAPI</h3>
+      <p>Audio processing pipeline: Whisper ASR, CRNN filler detection, prosody analysis, semantic relevance scoring, Gemini AI feedback generation.</p>
+      <div style="margin-top:10px"><span class="badge badge-orange">Port 5000</span> <span class="badge badge-red">FastAPI</span> <span class="badge badge-purple">PyTorch</span></div>
+    </div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3><span style="color:var(--purple)">🎯</span> Core Features</h3>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-title">Real-time Group Video Conferencing</div><div class="tl-desc">WebRTC peer-to-peer with ICE candidate buffering, reconnection, deduplication</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">AI-Powered Speech Analysis</div><div class="tl-desc">Filler word detection (CRNN), prosody metrics, semantic relevance scoring</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--orange)"></div><div class="tl-title">Performance Scoring Engine</div><div class="tl-desc">Fluency (35%) + Relevance (35%) + Confidence (30%) weighted scoring</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--purple)"></div><div class="tl-title">Peer Rating System</div><div class="tl-desc">4-criteria peer evaluation: communication, relevance, confidence, clarity</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--yellow)"></div><div class="tl-title">AI Discussion Partner</div><div class="tl-desc">Gemini 2.5 Flash powered chat with session memory and topic awareness</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-title">Session History & Reports</div><div class="tl-desc">Paginated history, search, stats, leaderboard, detailed feedback</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--yellow)">🔐</span> Security & Performance</h3>
+      <div class="score-bar"><div class="label">JWT Auth (7d expiry)</div><div class="bar"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="val">✓</div></div>
+      <div class="score-bar"><div class="label">bcrypt (12 rounds)</div><div class="bar"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="val">✓</div></div>
+      <div class="score-bar"><div class="label">Rate Limiting</div><div class="bar"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="val">✓</div></div>
+      <div class="score-bar"><div class="label">CORS Configured</div><div class="bar"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="val">✓</div></div>
+      <div class="score-bar"><div class="label">Cross-session Guard</div><div class="bar"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="val">✓</div></div>
+      <div class="score-bar"><div class="label">Input Validation</div><div class="bar"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="val">✓</div></div>
+      <div class="score-bar"><div class="label">Socket Rate Limit</div><div class="bar"><div class="fill" style="width:90%;background:var(--blue)"></div></div><div class="val">30/10s</div></div>
+      <div class="score-bar"><div class="label">Auth Rate Limit</div><div class="bar"><div class="fill" style="width:80%;background:var(--blue)"></div></div><div class="val">20/15m</div></div>
+      <div style="margin-top:16px">
+        <h3 style="margin-bottom:8px"><span style="color:var(--teal)">📦</span> Project Structure</h3>
+        <div class="tag">client/</div><div class="tag">server/</div><div class="tag">ml-server/</div>
+        <div class="tag">React + TS</div><div class="tag">Node.js ESM</div><div class="tag">Python 3.11</div>
+        <div class="tag">MongoDB</div><div class="tag">Socket.io</div><div class="tag">WebRTC</div>
+        <div class="tag">Whisper ASR</div><div class="tag">Gemini AI</div><div class="tag">ElevenLabs</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ ARCHITECTURE ═══ -->
+<div id="tab-architecture" class="section">
+  <div class="sec-title"><span>🏗️</span> System Architecture</div>
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="margin-bottom:16px">Three-Tier Distributed Architecture</h3>
+    <div class="arch">
+      <div class="arch-layer">
+        <h4 style="color:var(--blue)">🖥️ Client Layer</h4>
+        <div class="arch-item">React 19 + TypeScript</div>
+        <div class="arch-item">TanStack Router (file-based)</div>
+        <div class="arch-item">TanStack Query (data fetching)</div>
+        <div class="arch-item">Socket.io-client (WebRTC)</div>
+        <div class="arch-item">Radix UI + Tailwind CSS</div>
+        <div class="arch-item">React Hook Form + Zod</div>
+        <div class="arch-item">Recharts (analytics)</div>
+        <div class="arch-item">Sonner (notifications)</div>
+      </div>
+      <div style="display:flex;align-items:center;padding:0 8px;color:var(--muted);font-size:20px">⇄</div>
+      <div class="arch-layer">
+        <h4 style="color:var(--green)">⚙️ API Layer</h4>
+        <div class="arch-item">Express.js REST API</div>
+        <div class="arch-item">Socket.io (WebRTC signaling)</div>
+        <div class="arch-item">JWT Middleware</div>
+        <div class="arch-item">Rate Limiter</div>
+        <div class="arch-item">Request Logger</div>
+        <div class="arch-item">express-validator</div>
+        <div class="arch-item">In-memory Session Store</div>
+        <div class="arch-item">Gemini Topic Generator</div>
+      </div>
+      <div style="display:flex;align-items:center;padding:0 8px;color:var(--muted);font-size:20px">⇄</div>
+      <div class="arch-layer">
+        <h4 style="color:var(--yellow)">🗄️ Data Layer</h4>
+        <div class="arch-item">MongoDB (Mongoose ODM)</div>
+        <div class="arch-item">User Model</div>
+        <div class="arch-item">Session Model</div>
+        <div class="arch-item">Reports (sub-schema)</div>
+        <div class="arch-item">Peer Ratings (sub-schema)</div>
+        <div class="arch-item">Messages (sub-schema)</div>
+        <div class="arch-item">Auto-retry connection</div>
+        <div class="arch-item">Indexed queries</div>
+      </div>
+      <div style="display:flex;align-items:center;padding:0 8px;color:var(--muted);font-size:20px">⇄</div>
+      <div class="arch-layer">
+        <h4 style="color:var(--orange)">🧠 ML Layer</h4>
+        <div class="arch-item">FastAPI + Uvicorn</div>
+        <div class="arch-item">Whisper ASR (tiny.en)</div>
+        <div class="arch-item">CRNN Filler Detector</div>
+        <div class="arch-item">Sentence Transformers</div>
+        <div class="arch-item">Prosody Analysis</div>
+        <div class="arch-item">Gemini 2.5 Flash</div>
+        <div class="arch-item">ElevenLabs TTS/STT</div>
+        <div class="arch-item">librosa + ffmpeg</div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--blue)">🔄</span> WebRTC Signaling Architecture</h3>
+      <div class="flow">
+        <div class="flow-step" style="border-color:var(--blue)">Client A joins</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Socket.io connect</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--green)">join-session event</div>
+      </div>
+      <div class="flow" style="margin-top:8px">
+        <div class="flow-step" style="border-color:var(--green)">Server: session-joined</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">peer-joined broadcast</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--orange)">Client B notified</div>
+      </div>
+      <div class="flow" style="margin-top:8px">
+        <div class="flow-step" style="border-color:var(--orange)">A sends offer SDP</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Server relays</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--purple)">B sends answer SDP</div>
+      </div>
+      <div class="flow" style="margin-top:8px">
+        <div class="flow-step" style="border-color:var(--purple)">ICE candidates exchange</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--teal)">P2P connection established</div>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:var(--muted)">ICE candidates are buffered if they arrive before setRemoteDescription completes. STUN servers: stun.l.google.com:19302</p>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--orange)">🎙️</span> Audio Processing Architecture</h3>
+      <div class="flow">
+        <div class="flow-step" style="border-color:var(--blue)">Browser MediaStream</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Audio blob</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--orange)">ML Server upload</div>
+      </div>
+      <div class="flow" style="margin-top:8px">
+        <div class="flow-step" style="border-color:var(--orange)">ffmpeg → 16kHz WAV</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Split into chunks</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--purple)">Parallel processing</div>
+      </div>
+      <div class="flow" style="margin-top:8px">
+        <div class="flow-step" style="border-color:var(--purple)">Whisper ASR</div>
+        <div class="flow-arrow">+</div>
+        <div class="flow-step" style="border-color:var(--red)">CRNN fillers</div>
+        <div class="flow-arrow">+</div>
+        <div class="flow-step" style="border-color:var(--yellow)">Prosody</div>
+      </div>
+      <div class="flow" style="margin-top:8px">
+        <div class="flow-step" style="border-color:var(--green)">Semantic scoring</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--blue)">Gemini feedback</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="border-color:var(--teal)">Score returned</div>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:var(--muted)">ElevenLabs STT is primary; Whisper is fallback. CRNN processes 6 audio segments in parallel.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span style="color:var(--yellow)">🔐</span> Authentication Architecture</h3>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">REGISTRATION FLOW</div>
+        <div class="flow" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div class="flow-step">POST /api/auth/register</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">Validate (email unique, pw ≥6)</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">bcrypt hash (12 rounds)</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">Save to MongoDB</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step" style="border-color:var(--green)">JWT signed (7d) → localStorage</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">LOGIN FLOW</div>
+        <div class="flow" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div class="flow-step">POST /api/auth/login</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">Find user by email</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">bcrypt.compare(password)</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step" style="border-color:var(--green)">JWT signed → localStorage</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">PROTECTED ROUTES</div>
+        <div class="flow" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div class="flow-step">Request with Bearer token</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">requireAuth middleware</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">jwt.verify(token)</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step" style="border-color:var(--green)">req.user = {id, name, email}</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">SOCKET AUTH</div>
+        <div class="flow" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div class="flow-step">Socket.io handshake</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">auth.token in handshake</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">jwt.verify (optional)</div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step" style="border-color:var(--yellow)">socket.data.user (null=guest)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ DEPENDENCY GRAPH ═══ -->
+<div id="tab-graph" class="section">
+  <div class="sec-title"><span>🕸️</span> Interactive Dependency Graph</div>
+  <div style="margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--muted)">Node colors:</span>
+    <span class="badge badge-blue">● Frontend</span>
+    <span class="badge badge-green">● Backend</span>
+    <span class="badge badge-orange">● ML Server</span>
+    <span class="badge badge-purple">● Database</span>
+    <span class="badge badge-yellow">● External API</span>
+    <span class="badge badge-red">● Middleware</span>
+    <span style="font-size:12px;color:var(--muted);margin-left:8px">Drag nodes • Scroll to zoom • Hover for details</span>
+  </div>
+  <div id="graph-canvas"></div>
+  <div id="tooltip" class="tooltip" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ TECH STACK ═══ -->
+<div id="tab-techstack" class="section">
+  <div class="sec-title"><span>🛠️</span> Tech Stack</div>
+  <div class="grid grid-3" style="margin-bottom:20px">
+    <div class="card">
+      <h3 style="color:var(--blue)">🖥️ Frontend</h3>
+      <table>
+        <tr><th>Package</th><th>Version</th><th>Role</th></tr>
+        <tr><td><code>react</code></td><td><span class="badge badge-blue">19.2</span></td><td>UI framework</td></tr>
+        <tr><td><code>typescript</code></td><td><span class="badge badge-blue">5.8</span></td><td>Type safety</td></tr>
+        <tr><td><code>vite</code></td><td><span class="badge badge-blue">7.3</span></td><td>Build tool</td></tr>
+        <tr><td><code>@tanstack/react-router</code></td><td><span class="badge badge-purple">1.168</span></td><td>File-based routing</td></tr>
+        <tr><td><code>@tanstack/react-query</code></td><td><span class="badge badge-purple">5.83</span></td><td>Data fetching</td></tr>
+        <tr><td><code>socket.io-client</code></td><td><span class="badge badge-yellow">4.8</span></td><td>WebRTC signaling</td></tr>
+        <tr><td><code>tailwindcss</code></td><td><span class="badge badge-teal">4.2</span></td><td>Styling</td></tr>
+        <tr><td><code>@radix-ui/*</code></td><td><span class="badge badge-teal">latest</span></td><td>UI primitives</td></tr>
+        <tr><td><code>react-hook-form</code></td><td><span class="badge badge-orange">7.71</span></td><td>Form management</td></tr>
+        <tr><td><code>zod</code></td><td><span class="badge badge-orange">3.24</span></td><td>Schema validation</td></tr>
+        <tr><td><code>recharts</code></td><td><span class="badge badge-green">2.15</span></td><td>Charts/analytics</td></tr>
+        <tr><td><code>lucide-react</code></td><td><span class="badge badge-green">0.575</span></td><td>Icons</td></tr>
+        <tr><td><code>sonner</code></td><td><span class="badge badge-green">2.0</span></td><td>Toast notifications</td></tr>
+        <tr><td><code>date-fns</code></td><td><span class="badge badge-muted">4.1</span></td><td>Date utilities</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--green)">⚙️ Backend</h3>
+      <table>
+        <tr><th>Package</th><th>Version</th><th>Role</th></tr>
+        <tr><td><code>express</code></td><td><span class="badge badge-green">4.19</span></td><td>HTTP framework</td></tr>
+        <tr><td><code>socket.io</code></td><td><span class="badge badge-yellow">4.7</span></td><td>WebSocket server</td></tr>
+        <tr><td><code>mongoose</code></td><td><span class="badge badge-green">8.4</span></td><td>MongoDB ODM</td></tr>
+        <tr><td><code>jsonwebtoken</code></td><td><span class="badge badge-red">9.0</span></td><td>JWT auth</td></tr>
+        <tr><td><code>bcryptjs</code></td><td><span class="badge badge-red">2.4</span></td><td>Password hashing</td></tr>
+        <tr><td><code>express-validator</code></td><td><span class="badge badge-orange">7.1</span></td><td>Input validation</td></tr>
+        <tr><td><code>cors</code></td><td><span class="badge badge-muted">2.8</span></td><td>CORS headers</td></tr>
+        <tr><td><code>uuid</code></td><td><span class="badge badge-muted">10.0</span></td><td>ID generation</td></tr>
+        <tr><td><code>dotenv</code></td><td><span class="badge badge-muted">16.4</span></td><td>Env config</td></tr>
+        <tr><td>Node.js ESM</td><td><span class="badge badge-green">latest</span></td><td>Runtime</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--orange)">🧠 ML Server</h3>
+      <table>
+        <tr><th>Package</th><th>Version</th><th>Role</th></tr>
+        <tr><td><code>fastapi</code></td><td><span class="badge badge-orange">0.115</span></td><td>HTTP framework</td></tr>
+        <tr><td><code>uvicorn</code></td><td><span class="badge badge-orange">0.32</span></td><td>ASGI server</td></tr>
+        <tr><td><code>openai-whisper</code></td><td><span class="badge badge-purple">latest</span></td><td>ASR (tiny.en)</td></tr>
+        <tr><td><code>torch</code></td><td><span class="badge badge-purple">2.5</span></td><td>Deep learning</td></tr>
+        <tr><td><code>torchaudio</code></td><td><span class="badge badge-purple">2.5</span></td><td>Audio tensors</td></tr>
+        <tr><td><code>sentence-transformers</code></td><td><span class="badge badge-blue">3.3</span></td><td>Semantic similarity</td></tr>
+        <tr><td><code>google-genai</code></td><td><span class="badge badge-yellow">1.16</span></td><td>Gemini 2.5 Flash</td></tr>
+        <tr><td><code>librosa</code></td><td><span class="badge badge-green">0.10</span></td><td>Audio analysis</td></tr>
+        <tr><td><code>ffmpeg-python</code></td><td><span class="badge badge-green">0.2</span></td><td>Audio conversion</td></tr>
+        <tr><td><code>parselmouth</code></td><td><span class="badge badge-teal">0.4</span></td><td>Praat prosody</td></tr>
+        <tr><td><code>numpy</code></td><td><span class="badge badge-muted">1.26</span></td><td>Numerics</td></tr>
+        <tr><td><code>scipy</code></td><td><span class="badge badge-muted">1.14</span></td><td>Signal processing</td></tr>
+        <tr><td><code>httpx</code></td><td><span class="badge badge-muted">0.28</span></td><td>ElevenLabs client</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3><span style="color:var(--yellow)">🌐</span> External Services</h3>
+      <table>
+        <tr><th>Service</th><th>Usage</th><th>Fallback</th></tr>
+        <tr><td><span class="badge badge-yellow">Gemini 2.5 Flash</span></td><td>Topic generation, scoring, feedback, chat</td><td>Local topic list</td></tr>
+        <tr><td><span class="badge badge-purple">ElevenLabs</span></td><td>STT (primary), TTS</td><td>Whisper ASR</td></tr>
+        <tr><td><span class="badge badge-blue">Google STUN</span></td><td>ICE candidate discovery</td><td>Custom TURN server</td></tr>
+        <tr><td><span class="badge badge-green">MongoDB Atlas</span></td><td>Persistent storage</td><td>Local MongoDB</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--teal)">🔧</span> Dev Tools</h3>
+      <table>
+        <tr><th>Tool</th><th>Purpose</th></tr>
+        <tr><td><code>eslint</code> + <code>prettier</code></td><td>Code quality & formatting</td></tr>
+        <tr><td><code>typescript-eslint</code></td><td>TypeScript linting</td></tr>
+        <tr><td><code>vite-tsconfig-paths</code></td><td>Path aliases (@/)</td></tr>
+        <tr><td><code>node --watch</code></td><td>Backend hot reload</td></tr>
+        <tr><td><code>@tanstack/router-plugin</code></td><td>Route tree generation</td></tr>
+        <tr><td><code>@lovable.dev/vite-tanstack-config</code></td><td>Vite config preset</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ API REFERENCE ═══ -->
+<div id="tab-api" class="section">
+  <div class="sec-title"><span>📡</span> API Reference</div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--red)">🔑</span> Auth Routes <code>/api/auth</code></h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/register</code></td><td>Create account → JWT</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/login</code></td><td>Login → JWT</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/me</code></td><td>Current user profile</td></tr>
+        <tr><td><span class="badge badge-yellow">PATCH</span></td><td><code>/profile</code></td><td>Update name/password</td></tr>
+        <tr><td><span class="badge badge-yellow">PATCH</span></td><td><code>/preferences</code></td><td>Update user preferences</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--blue)">📋</span> Session Routes <code>/api/sessions</code></h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/</code></td><td>Create session (Gemini topic)</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/</code></td><td>List active sessions</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id</code></td><td>Session details</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id/validate</code></td><td>Check session exists</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id/participants</code></td><td>List participants</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/:id/join</code></td><td>Join session (idempotent)</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/:id/leave</code></td><td>Leave session</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/:id/end</code></td><td>End session (host only)</td></tr>
+        <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/:id</code></td><td>Delete session (host only)</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--green)">📊</span> Report Routes <code>/api/reports</code></h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/:id</code></td><td>Submit session report</td></tr>
+        <tr><td><span class="badge badge-yellow">PATCH</span></td><td><code>/:id/turn</code></td><td>Record per-turn metrics</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id</code></td><td>Get full report</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id/me</code></td><td>My report for session</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id/summary</code></td><td>Session summary</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id/leaderboard</code></td><td>Score leaderboard</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--purple)">⭐</span> Peer Rating Routes <code>/api/peer-ratings</code></h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/:id</code></td><td>Submit peer ratings (array)</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id</code></td><td>Get received ratings</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id/status</code></td><td>Check submission status</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id/summary</code></td><td>Aggregated ratings all participants</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--yellow)">📜</span> History Routes <code>/api/history</code></h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/</code></td><td>Paginated history (filterable)</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/stats</code></td><td>User statistics</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/search?q=</code></td><td>Search by topic</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/:id</code></td><td>Specific session details</td></tr>
+        <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/:id</code></td><td>Remove from history</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--teal)">💬</span> Other Routes</h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/topics/generate</code></td><td>Generate GD topic (Gemini)</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/topics/categories</code></td><td>List topic categories</td></tr>
+        <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/topics/category/:name</code></td><td>Topics by category</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/chat/gd</code></td><td>AI discussion partner chat</td></tr>
+      </table>
+      <h3 style="margin-top:16px"><span style="color:var(--orange)">🧠</span> ML Server <code>:5000</code></h3>
+      <table>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/fluency/upload</code></td><td>Audio → transcript + prosody</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/fluency/score</code></td><td>Score transcript</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/gd/turn</code></td><td>Full dual-processing pipeline</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/gd/chat</code></td><td>AI discussion partner</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/gd/report</code></td><td>Generate session report</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/stt</code></td><td>Speech-to-text proxy</td></tr>
+        <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/tts</code></td><td>Text-to-speech proxy</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span style="color:var(--blue)">🔌</span> Socket.io Events Reference</h3>
+    <div class="grid grid-2" style="margin-top:12px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">CLIENT → SERVER</div>
+        <table>
+          <tr><th>Event</th><th>Payload</th></tr>
+          <tr><td><code>join-session</code></td><td>{ sessionId, name, userId? }</td></tr>
+          <tr><td><code>leave-session</code></td><td>{ sessionId? }</td></tr>
+          <tr><td><code>webrtc-offer</code></td><td>{ targetSocketId, sdp }</td></tr>
+          <tr><td><code>webrtc-answer</code></td><td>{ targetSocketId, sdp }</td></tr>
+          <tr><td><code>webrtc-ice</code></td><td>{ targetSocketId, candidate }</td></tr>
+          <tr><td><code>toggle-audio</code></td><td>{ enabled }</td></tr>
+          <tr><td><code>toggle-video</code></td><td>{ enabled }</td></tr>
+          <tr><td><code>toggle-screen</code></td><td>{ enabled }</td></tr>
+          <tr><td><code>speaking</code></td><td>{ isSpeaking }</td></tr>
+          <tr><td><code>chat-message</code></td><td>{ text }</td></tr>
+          <tr><td><code>ping</code></td><td>—</td></tr>
+        </table>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">SERVER → CLIENT</div>
+        <table>
+          <tr><th>Event</th><th>Payload</th></tr>
+          <tr><td><code>session-joined</code></td><td>{ session, you, peers[] }</td></tr>
+          <tr><td><code>session-error</code></td><td>{ code, message }</td></tr>
+          <tr><td><code>peer-joined</code></td><td>{ participant }</td></tr>
+          <tr><td><code>peer-left</code></td><td>{ socketId, name }</td></tr>
+          <tr><td><code>room-roster</code></td><td>{ participants[] }</td></tr>
+          <tr><td><code>webrtc-offer</code></td><td>{ fromSocketId, sdp }</td></tr>
+          <tr><td><code>webrtc-answer</code></td><td>{ fromSocketId, sdp }</td></tr>
+          <tr><td><code>webrtc-ice</code></td><td>{ fromSocketId, candidate }</td></tr>
+          <tr><td><code>peer-updated</code></td><td>{ socketId, ...state }</td></tr>
+          <tr><td><code>chat-message</code></td><td>{ id, senderId, senderName, text, ts }</td></tr>
+          <tr><td><code>pong</code></td><td>{ ts }</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ WORKFLOWS ═══ -->
+<div id="tab-workflow" class="section">
+  <div class="sec-title"><span>🔄</span> Key Workflows</div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--blue)">🚀</span> Session Creation & Join Flow</h3>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-title">1. Host creates session</div><div class="tl-desc">POST /api/sessions → Gemini generates topic → sessionId returned (e.g. ABCD-EFGH-IJKL)</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">2. Host shares session ID</div><div class="tl-desc">Participants navigate to /group-session/:sessionId</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--orange)"></div><div class="tl-title">3. Validate session</div><div class="tl-desc">GET /api/sessions/:id/validate → confirm session exists and is active</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--purple)"></div><div class="tl-title">4. Join via REST</div><div class="tl-desc">POST /api/sessions/:id/join → marks participant as active in MongoDB</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--yellow)"></div><div class="tl-title">5. Socket.io connect</div><div class="tl-desc">emit join-session → server adds to room, broadcasts peer-joined to others</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-title">6. WebRTC negotiation</div><div class="tl-desc">New peer sends offers to all existing peers → ICE exchange → P2P streams established</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">7. Session active</div><div class="tl-desc">All participants see each other's video/audio. Chat and AI panel available.</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--orange)">🎙️</span> Audio Analysis & Scoring Flow</h3>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-title">1. Capture audio</div><div class="tl-desc">Browser MediaRecorder captures participant's microphone stream</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">2. Upload to ML server</div><div class="tl-desc">POST /api/gd/turn with audio blob + sessionId + topic</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--orange)"></div><div class="tl-title">3. Audio preprocessing</div><div class="tl-desc">ffmpeg converts to 16kHz mono WAV → split into 15s chunks</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--purple)"></div><div class="tl-title">4. Parallel processing</div><div class="tl-desc">ElevenLabs STT (primary) + CRNN filler detection + prosody analysis run concurrently</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--yellow)"></div><div class="tl-title">5. Semantic scoring</div><div class="tl-desc">sentence-transformers computes cosine similarity between transcript sentences and topic</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-title">6. Gemini scoring</div><div class="tl-desc">Gemini 2.5 Flash evaluates vocabulary, grammar, coherence, clarity, prosody metrics</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-title">7. Score aggregation</div><div class="tl-desc">PATCH /api/reports/:id/turn → scoreCalculator.js computes weighted overall score</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--purple)">⭐</span> Session End & Peer Rating Flow</h3>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-title">1. Host ends session</div><div class="tl-desc">POST /api/sessions/:id/end → status set to "ended", endedAt recorded</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">2. AI report generated</div><div class="tl-desc">POST /api/gd/report → Gemini generates personalized feedback for each participant</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--orange)"></div><div class="tl-title">3. Peer rating modal</div><div class="tl-desc">PeerRatingModal shown to each participant to rate others (1-5 on 4 criteria)</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--purple)"></div><div class="tl-title">4. Submit ratings</div><div class="tl-desc">POST /api/peer-ratings/:id → stored in session.peerRatings array</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--yellow)"></div><div class="tl-title">5. Aggregate scores</div><div class="tl-desc">peerScore = avg(communication+relevance+confidence+clarity)/4 × 2 → 0-10 scale</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-title">6. Combined score</div><div class="tl-desc">combinedScore = (overallScore × 0.7) + (peerScore × 0.3)</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">7. View report</div><div class="tl-desc">Navigate to /report/:sessionId → full breakdown with charts and feedback</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--yellow)">🤖</span> AI Discussion Partner Flow</h3>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-title">1. Session initialized</div><div class="tl-desc">POST /api/gd/session/start → Gemini session memory created with topic context</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">2. User speaks/types</div><div class="tl-desc">Audio captured or text typed in AIPanel component</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--orange)"></div><div class="tl-title">3. STT (if audio)</div><div class="tl-desc">ElevenLabs STT converts speech to text with Whisper fallback</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--purple)"></div><div class="tl-title">4. Gemini responds</div><div class="tl-desc">POST /api/gd/chat → Gemini generates contextual discussion response</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--yellow)"></div><div class="tl-title">5. TTS (optional)</div><div class="tl-desc">POST /api/tts → ElevenLabs converts AI response to speech</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-title">6. Real-time scoring</div><div class="tl-desc">Each turn scored and aggregated → running performance metrics updated</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span style="color:var(--teal)">📊</span> Scoring Formula</h3>
+    <div class="grid grid-3" style="margin-top:12px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">OVERALL SCORE WEIGHTS</div>
+        <div class="score-bar"><div class="label">Fluency</div><div class="bar"><div class="fill" style="width:35%;background:var(--blue)"></div></div><div class="val">35%</div></div>
+        <div class="score-bar"><div class="label">Relevance</div><div class="bar"><div class="fill" style="width:35%;background:var(--green)"></div></div><div class="val">35%</div></div>
+        <div class="score-bar"><div class="label">Confidence</div><div class="bar"><div class="fill" style="width:30%;background:var(--purple)"></div></div><div class="val">30%</div></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">Filler penalty: 0-2→0, 3-5→-0.5, 6-10→-1.0, 11+→-1.5</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">COMBINED SCORE</div>
+        <div class="score-bar"><div class="label">AI Score</div><div class="bar"><div class="fill" style="width:70%;background:var(--orange)"></div></div><div class="val">70%</div></div>
+        <div class="score-bar"><div class="label">Peer Score</div><div class="bar"><div class="fill" style="width:30%;background:var(--yellow)"></div></div><div class="val">30%</div></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">Peer score = avg of 4 criteria (1-5) × 2 → 0-10 scale</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">PEER RATING CRITERIA</div>
+        <div class="score-bar"><div class="label">Communication</div><div class="bar"><div class="fill" style="width:100%;background:var(--blue)"></div></div><div class="val">1-5</div></div>
+        <div class="score-bar"><div class="label">Relevance</div><div class="bar"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="val">1-5</div></div>
+        <div class="score-bar"><div class="label">Confidence</div><div class="bar"><div class="fill" style="width:100%;background:var(--purple)"></div></div><div class="val">1-5</div></div>
+        <div class="score-bar"><div class="label">Clarity</div><div class="bar"><div class="fill" style="width:100%;background:var(--orange)"></div></div><div class="val">1-5</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ ML PIPELINE ═══ -->
+<div id="tab-ml" class="section">
+  <div class="sec-title"><span>🧠</span> ML Pipeline</div>
+  <div class="grid grid-3" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--purple)">🔊</span> CRNN Filler Detector</h3>
+      <p style="margin-bottom:12px">Custom trained model for detecting filler words in speech audio segments.</p>
+      <table>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td>Architecture</td><td>Conv2D → GRU (bidirectional) → Classifier</td></tr>
+        <tr><td>Input</td><td>Mel-spectrogram (128 bins, 2584 frames)</td></tr>
+        <tr><td>Output</td><td>Binary: filler / non-filler per segment</td></tr>
+        <tr><td>Segments</td><td>6 audio segments per audio file</td></tr>
+        <tr><td>Return</td><td>Integer 0-6 (filler segment count)</td></tr>
+        <tr><td>Model file</td><td><code>filler_crnn_final.pth</code></td></tr>
+        <tr><td>Framework</td><td>PyTorch 2.5 + torchaudio</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--blue)">📐</span> Semantic Relevance Scorer</h3>
+      <p style="margin-bottom:12px">Measures how on-topic the participant's speech is relative to the GD topic.</p>
+      <table>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td>Model</td><td>all-MiniLM-L6-v2 (sentence-transformers)</td></tr>
+        <tr><td>Method</td><td>Cosine similarity per sentence</td></tr>
+        <tr><td>Threshold</td><td>≥ 0.50 similarity = relevant</td></tr>
+        <tr><td>Scoring</td><td>85%+ relevant → 10, proportional below</td></tr>
+        <tr><td>Final score</td><td>avg(proportion score, mean similarity)</td></tr>
+        <tr><td>Output</td><td>Integer 1-10</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--orange)">🎵</span> Prosody Analysis</h3>
+      <p style="margin-bottom:12px">Extracts speech quality metrics from audio waveform.</p>
+      <table>
+        <tr><th>Metric</th><th>Description</th></tr>
+        <tr><td>Speech Rate</td><td>Words per minute (WPM)</td></tr>
+        <tr><td>Pause Ratio</td><td>Pause time / total duration</td></tr>
+        <tr><td>Pitch Mean</td><td>Average fundamental frequency (F0)</td></tr>
+        <tr><td>Pitch Std</td><td>Pitch variability</td></tr>
+        <tr><td>Pitch Range</td><td>p95 - p5 frequency range</td></tr>
+        <tr><td>Jitter</td><td>Cycle-to-cycle F0 variation</td></tr>
+        <tr><td>nPVI</td><td>Rhythm variability index</td></tr>
+        <tr><td>VAD</td><td>Energy-based voice activity detection</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <h3><span style="color:var(--yellow)">📊</span> Gemini Scoring Rubric</h3>
+    <div class="grid grid-2" style="margin-top:12px">
+      <table>
+        <tr><th>Metric</th><th>Score 2</th><th>Score 5</th><th>Score 8</th><th>Score 10</th></tr>
+        <tr><td>Vocabulary (TTR)</td><td>&lt;0.25</td><td>0.25-0.40</td><td>0.40-0.55</td><td>≥0.55</td></tr>
+        <tr><td>Grammar errors/100w</td><td>≥6</td><td>4-5</td><td>2-3</td><td>0-1</td></tr>
+        <tr><td>Sentence correctness</td><td>&lt;60%</td><td>60-74%</td><td>75-89%</td><td>≥90%</td></tr>
+        <tr><td>Coherence</td><td>&lt;0.45</td><td>0.45-0.59</td><td>0.60-0.74</td><td>≥0.75</td></tr>
+        <tr><td>Clarity (Flesch-Kincaid)</td><td>&lt;30</td><td>30-49</td><td>50-59</td><td>≥60</td></tr>
+      </table>
+      <table>
+        <tr><th>Metric</th><th>Optimal Range</th><th>Score</th></tr>
+        <tr><td>Speech Rate (WPM)</td><td>141-160 WPM</td><td>9/10</td></tr>
+        <tr><td>Speech Rate (WPM)</td><td>121-140 WPM</td><td>8/10</td></tr>
+        <tr><td>Pause Ratio</td><td>0.04-0.06</td><td>9/10</td></tr>
+        <tr><td>Pitch Variability</td><td>0.035-0.06</td><td>9/10</td></tr>
+        <tr><td>Rhythm (nPVI)</td><td>25-50</td><td>8/10</td></tr>
+        <tr><td>Fillers</td><td>0 fillers</td><td>10/10</td></tr>
+        <tr><td>Fillers</td><td>1 filler</td><td>9/10</td></tr>
+        <tr><td>Fillers</td><td>6+ fillers</td><td>0/10</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span style="color:var(--green)">🔁</span> Full Turn Processing Pipeline</h3>
+    <div class="flow" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+      <div class="flow-step" style="border-color:var(--blue)">Audio Upload<br><small style="color:var(--muted)">multipart/form-data</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:var(--orange)">ffmpeg convert<br><small style="color:var(--muted)">16kHz mono WAV</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:var(--purple)">Parallel fork<br><small style="color:var(--muted)">asyncio.gather</small></div>
+      <div class="flow-arrow">→</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="flow-step" style="border-color:var(--yellow)">ElevenLabs STT<br><small style="color:var(--muted)">→ Whisper fallback</small></div>
+        <div class="flow-step" style="border-color:var(--red)">CRNN filler count<br><small style="color:var(--muted)">6 segments</small></div>
+        <div class="flow-step" style="border-color:var(--teal)">Prosody metrics<br><small style="color:var(--muted)">librosa + parselmouth</small></div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:var(--blue)">Semantic score<br><small style="color:var(--muted)">MiniLM cosine sim</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:var(--yellow)">Gemini chat reply<br><small style="color:var(--muted)">session memory</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:var(--yellow)">Gemini scoring<br><small style="color:var(--muted)">rubric-based</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:var(--green)">{ transcript, reply,<br>scores, aggregate }</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ DATABASE ═══ -->
+<div id="tab-database" class="section">
+  <div class="sec-title"><span>🗄️</span> Database Schema</div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--blue)">👤</span> User Model</h3>
+      <table>
+        <tr><th>Field</th><th>Type</th><th>Constraints</th></tr>
+        <tr><td><code>name</code></td><td>String</td><td>required, max 100</td></tr>
+        <tr><td><code>email</code></td><td>String</td><td>required, unique, lowercase</td></tr>
+        <tr><td><code>password</code></td><td>String</td><td>hashed (bcrypt 12 rounds)</td></tr>
+        <tr><td><code>avatar</code></td><td>String</td><td>default: ""</td></tr>
+        <tr><td><code>plan</code></td><td>Enum</td><td>"free" | "pro"</td></tr>
+        <tr><td><code>preferences.micEnabled</code></td><td>Boolean</td><td>default: true</td></tr>
+        <tr><td><code>preferences.noiseSuppression</code></td><td>Boolean</td><td>default: true</td></tr>
+        <tr><td><code>preferences.echoCancellation</code></td><td>Boolean</td><td>default: true</td></tr>
+        <tr><td><code>preferences.practiceReminders</code></td><td>Boolean</td><td>default: true</td></tr>
+        <tr><td><code>preferences.sessionSummary</code></td><td>Boolean</td><td>default: true</td></tr>
+        <tr><td><code>preferences.weeklyReport</code></td><td>Boolean</td><td>default: false</td></tr>
+        <tr><td><code>preferences.aiPersona</code></td><td>Enum</td><td>friendly|critical|devils-advocate|neutral</td></tr>
+        <tr><td><code>createdAt</code></td><td>Date</td><td>auto (timestamps)</td></tr>
+        <tr><td><code>updatedAt</code></td><td>Date</td><td>auto (timestamps)</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--green)">📋</span> Session Model (top-level)</h3>
+      <table>
+        <tr><th>Field</th><th>Type</th><th>Constraints</th></tr>
+        <tr><td><code>sessionId</code></td><td>String</td><td>unique, uppercase, indexed</td></tr>
+        <tr><td><code>type</code></td><td>Enum</td><td>"individual" | "group"</td></tr>
+        <tr><td><code>topic</code></td><td>String</td><td>required</td></tr>
+        <tr><td><code>topicSource</code></td><td>Enum</td><td>"gemini" | "local"</td></tr>
+        <tr><td><code>hostId</code></td><td>ObjectId</td><td>ref: User</td></tr>
+        <tr><td><code>maxParticipants</code></td><td>Number</td><td>1-50, default: 12</td></tr>
+        <tr><td><code>status</code></td><td>Enum</td><td>"waiting" | "active" | "ended"</td></tr>
+        <tr><td><code>participants</code></td><td>Array</td><td>participantSchema[]</td></tr>
+        <tr><td><code>messages</code></td><td>Array</td><td>messageSchema[]</td></tr>
+        <tr><td><code>peerRatings</code></td><td>Array</td><td>peerRatingSchema[]</td></tr>
+        <tr><td><code>peerRatingSubmitters</code></td><td>Array</td><td>[ObjectId] tracks who rated</td></tr>
+        <tr><td><code>startedAt</code></td><td>Date</td><td>—</td></tr>
+        <tr><td><code>endedAt</code></td><td>Date</td><td>null until ended</td></tr>
+        <tr><td><code>duration</code></td><td>Number</td><td>seconds</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="grid grid-3" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--orange)">📊</span> Report Sub-schema</h3>
+      <table>
+        <tr><th>Field</th><th>Type</th><th>Range</th></tr>
+        <tr><td><code>fluency</code></td><td>Number</td><td>0-10</td></tr>
+        <tr><td><code>relevance</code></td><td>Number</td><td>0-10</td></tr>
+        <tr><td><code>confidence</code></td><td>Number</td><td>0-10</td></tr>
+        <tr><td><code>fillerWords</code></td><td>Number</td><td>raw count</td></tr>
+        <tr><td><code>turns</code></td><td>Number</td><td>speaking turns</td></tr>
+        <tr><td><code>overallScore</code></td><td>Number</td><td>0-10</td></tr>
+        <tr><td><code>feedback</code></td><td>String</td><td>auto-generated</td></tr>
+        <tr><td><code>aiFeedback</code></td><td>String</td><td>Gemini feedback</td></tr>
+        <tr><td><code>peerScore</code></td><td>Number</td><td>0-10 | null</td></tr>
+        <tr><td><code>peerFeedback</code></td><td>String</td><td>aggregated</td></tr>
+        <tr><td><code>combinedScore</code></td><td>Number</td><td>0-10 | null</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--purple)">⭐</span> Peer Rating Sub-schema</h3>
+      <table>
+        <tr><th>Field</th><th>Type</th><th>Constraints</th></tr>
+        <tr><td><code>raterId</code></td><td>ObjectId</td><td>ref: User, required</td></tr>
+        <tr><td><code>raterName</code></td><td>String</td><td>required</td></tr>
+        <tr><td><code>rateeId</code></td><td>ObjectId</td><td>ref: User, required</td></tr>
+        <tr><td><code>rateeName</code></td><td>String</td><td>required</td></tr>
+        <tr><td><code>communication</code></td><td>Number</td><td>1-5, required</td></tr>
+        <tr><td><code>relevance</code></td><td>Number</td><td>1-5, required</td></tr>
+        <tr><td><code>confidence</code></td><td>Number</td><td>1-5, required</td></tr>
+        <tr><td><code>clarity</code></td><td>Number</td><td>1-5, required</td></tr>
+        <tr><td><code>comment</code></td><td>String</td><td>max 500 chars</td></tr>
+        <tr><td><code>submittedAt</code></td><td>Date</td><td>auto</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--teal)">💬</span> Message Sub-schema</h3>
+      <table>
+        <tr><th>Field</th><th>Type</th><th>Constraints</th></tr>
+        <tr><td><code>senderId</code></td><td>String</td><td>userId or socketId</td></tr>
+        <tr><td><code>senderName</code></td><td>String</td><td>required</td></tr>
+        <tr><td><code>text</code></td><td>String</td><td>required, max 2000</td></tr>
+        <tr><td><code>ts</code></td><td>Date</td><td>auto</td></tr>
+      </table>
+      <h3 style="margin-top:16px"><span style="color:var(--yellow)">🧠</span> In-Memory Session Store</h3>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">Separate from MongoDB — tracks live WebSocket connections only.</p>
+      <table style="margin-top:8px">
+        <tr><th>Structure</th><th>Key → Value</th></tr>
+        <tr><td>sessions Map</td><td>sessionId → { participants, userIndex }</td></tr>
+        <tr><td>participants Map</td><td>socketId → Participant</td></tr>
+        <tr><td>userIndex Map</td><td>userId → socketId</td></tr>
+        <tr><td>TTL cleanup</td><td>5 min after last participant leaves</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ UI DESIGN ═══ -->
+<div id="tab-design" class="section">
+  <div class="sec-title"><span>🎨</span> UI Design System</div>
+  <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--blue)">🗺️</span> Frontend Routes</h3>
+      <table>
+        <tr><th>Route</th><th>File</th><th>Description</th></tr>
+        <tr><td><code>/</code></td><td>index.tsx</td><td>Landing / home page</td></tr>
+        <tr><td><code>/login</code></td><td>login.tsx</td><td>Login form</td></tr>
+        <tr><td><code>/register</code></td><td>register.tsx</td><td>Registration form</td></tr>
+        <tr><td><code>/dashboard</code></td><td>dashboard.tsx</td><td>User dashboard</td></tr>
+        <tr><td><code>/group-session</code></td><td>group-session.tsx</td><td>Create/join session</td></tr>
+        <tr><td><code>/group-session/:sessionId</code></td><td>group-session_.$sessionId.tsx</td><td>Live video session</td></tr>
+        <tr><td><code>/gd/:sessionId</code></td><td>gd.$sessionId.tsx</td><td>Individual GD practice</td></tr>
+        <tr><td><code>/report/:sessionId</code></td><td>report.$sessionId.tsx</td><td>Session report</td></tr>
+        <tr><td><code>/history</code></td><td>history.tsx</td><td>Session history</td></tr>
+        <tr><td><code>/profile</code></td><td>profile.tsx</td><td>User profile & settings</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--purple)">🧩</span> Component Architecture</h3>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-title">AppSidebar</div><div class="tl-desc">Navigation sidebar with route links, user info, session controls</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-title">ParticipantTile</div><div class="tl-desc">Video tile: stream display, name overlay, audio/video/speaking indicators</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--orange)"></div><div class="tl-title">ControlBar</div><div class="tl-desc">Mic, camera, screen share, chat, AI panel toggles + leave button</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--purple)"></div><div class="tl-title">ChatSidebar</div><div class="tl-desc">Real-time chat messages with sender name, timestamp, own/other styling</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--yellow)"></div><div class="tl-title">AIPanel</div><div class="tl-desc">AI discussion partner: text/voice input, response display, running scores</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-title">PeerRatingModal</div><div class="tl-desc">Post-session rating form: 4 criteria × all other participants</div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-title">LeaveDialog</div><div class="tl-desc">Confirmation dialog before leaving session</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-3" style="margin-bottom:20px">
+    <div class="card">
+      <h3><span style="color:var(--teal)">🎨</span> Design Tokens</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#0d1117;border:1px solid #30363d"></div><span style="font-size:12px">Background <code>#0d1117</code></span></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#161b22;border:1px solid #30363d"></div><span style="font-size:12px">Surface <code>#161b22</code></span></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#21262d;border:1px solid #30363d"></div><span style="font-size:12px">Surface 2 <code>#21262d</code></span></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#58a6ff"></div><span style="font-size:12px">Primary Blue <code>#58a6ff</code></span></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#3fb950"></div><span style="font-size:12px">Success Green <code>#3fb950</code></span></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#f85149"></div><span style="font-size:12px">Danger Red <code>#f85149</code></span></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#f0883e"></div><span style="font-size:12px">Warning Orange <code>#f0883e</code></span></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:24px;height:24px;border-radius:4px;background:#bc8cff"></div><span style="font-size:12px">Purple <code>#bc8cff</code></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--orange)">📐</span> UI Primitives (Radix UI)</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+        <span class="tag">Accordion</span><span class="tag">AlertDialog</span><span class="tag">Avatar</span>
+        <span class="tag">Badge</span><span class="tag">Button</span><span class="tag">Calendar</span>
+        <span class="tag">Card</span><span class="tag">Carousel</span><span class="tag">Chart</span>
+        <span class="tag">Checkbox</span><span class="tag">Command</span><span class="tag">Dialog</span>
+        <span class="tag">Drawer</span><span class="tag">DropdownMenu</span><span class="tag">Form</span>
+        <span class="tag">HoverCard</span><span class="tag">Input</span><span class="tag">Label</span>
+        <span class="tag">Menubar</span><span class="tag">NavigationMenu</span><span class="tag">Pagination</span>
+        <span class="tag">Popover</span><span class="tag">Progress</span><span class="tag">RadioGroup</span>
+        <span class="tag">ScrollArea</span><span class="tag">Select</span><span class="tag">Separator</span>
+        <span class="tag">Sheet</span><span class="tag">Sidebar</span><span class="tag">Skeleton</span>
+        <span class="tag">Slider</span><span class="tag">Switch</span><span class="tag">Table</span>
+        <span class="tag">Tabs</span><span class="tag">Textarea</span><span class="tag">Toast</span>
+        <span class="tag">Toggle</span><span class="tag">Tooltip</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--green)">🪝</span> Custom Hooks</h3>
+      <table>
+        <tr><th>Hook</th><th>Purpose</th></tr>
+        <tr><td><code>useGroupSession</code></td><td>WebRTC session management, participants, chat, media controls</td></tr>
+        <tr><td><code>useCurrentUser</code></td><td>Auth state, user profile, JWT decode</td></tr>
+        <tr><td><code>useAITopic</code></td><td>Topic generation from ML server</td></tr>
+        <tr><td><code>usePageFocus</code></td><td>Page visibility detection</td></tr>
+        <tr><td><code>useMobile</code></td><td>Responsive breakpoint detection</td></tr>
+      </table>
+      <h3 style="margin-top:16px"><span style="color:var(--blue)">📡</span> API Client</h3>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">Centralized fetch wrapper in <code>client/src/lib/api.ts</code></p>
+      <div class="tag">JWT Bearer auth</div>
+      <div class="tag">Auto 401 redirect</div>
+      <div class="tag">15s timeout</div>
+      <div class="tag">ApiError class</div>
+      <div class="tag">getToken() helper</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ FILE MAP ═══ -->
+<div id="tab-files" class="section">
+  <div class="sec-title"><span>📁</span> File Map</div>
+  <div class="grid grid-3">
+    <div class="card">
+      <h3><span style="color:var(--green)">⚙️</span> server/src/</h3>
+      <table>
+        <tr><th>File</th><th>Purpose</th></tr>
+        <tr><td><code>index.js</code></td><td>Entry point, Express + Socket.io setup, graceful shutdown</td></tr>
+        <tr><td><code>routes.js</code></td><td>Legacy session REST endpoints</td></tr>
+        <tr><td><code>socketHandler.js</code></td><td>WebRTC signaling, chat, peer state, rate limiting</td></tr>
+        <tr><td><code>sessionStore.js</code></td><td>In-memory live session state (Map-based)</td></tr>
+        <tr><td><code>db.js</code></td><td>MongoDB connection with auto-retry</td></tr>
+        <tr><td><code>topics.js</code></td><td>Gemini topic generation + local fallback list</td></tr>
+        <tr><td><code>models/User.js</code></td><td>User schema, password hashing, auth methods</td></tr>
+        <tr><td><code>models/Session.js</code></td><td>Session schema with all sub-schemas</td></tr>
+        <tr><td><code>routes/auth.js</code></td><td>Register, login, profile, preferences</td></tr>
+        <tr><td><code>routes/sessions.js</code></td><td>Session CRUD, join, leave, end</td></tr>
+        <tr><td><code>routes/reports.js</code></td><td>Report submission, retrieval, leaderboard</td></tr>
+        <tr><td><code>routes/history.js</code></td><td>History, stats, search</td></tr>
+        <tr><td><code>routes/topics.js</code></td><td>Topic generation and categories</td></tr>
+        <tr><td><code>routes/chat.js</code></td><td>AI discussion partner chat</td></tr>
+        <tr><td><code>routes/peerRatings.js</code></td><td>Peer rating submission and aggregation</td></tr>
+        <tr><td><code>lib/scoreCalculator.js</code></td><td>Score weights, filler penalty, overall score</td></tr>
+        <tr><td><code>middleware/auth.js</code></td><td>JWT verification, requireAuth middleware</td></tr>
+        <tr><td><code>middleware/logger.js</code></td><td>Structured request logging with request ID</td></tr>
+        <tr><td><code>middleware/rateLimiter.js</code></td><td>Per-IP rate limiting for auth routes</td></tr>
+        <tr><td><code>middleware/validate.js</code></td><td>express-validator error handler</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--blue)">🖥️</span> client/src/</h3>
+      <table>
+        <tr><th>File</th><th>Purpose</th></tr>
+        <tr><td><code>main.tsx</code></td><td>React app entry, router provider</td></tr>
+        <tr><td><code>router.tsx</code></td><td>TanStack Router config, error boundary</td></tr>
+        <tr><td><code>routeTree.gen.ts</code></td><td>Auto-generated route tree</td></tr>
+        <tr><td><code>styles.css</code></td><td>Global styles, Tailwind base</td></tr>
+        <tr><td><code>routes/__root.tsx</code></td><td>Root layout, sidebar, auth guard</td></tr>
+        <tr><td><code>routes/index.tsx</code></td><td>Landing page</td></tr>
+        <tr><td><code>routes/login.tsx</code></td><td>Login form with validation</td></tr>
+        <tr><td><code>routes/register.tsx</code></td><td>Registration form</td></tr>
+        <tr><td><code>routes/dashboard.tsx</code></td><td>User dashboard with stats</td></tr>
+        <tr><td><code>routes/group-session.tsx</code></td><td>Create/join session UI</td></tr>
+        <tr><td><code>routes/group-session_.$sessionId.tsx</code></td><td>Live WebRTC session page</td></tr>
+        <tr><td><code>routes/gd.$sessionId.tsx</code></td><td>Individual GD practice page</td></tr>
+        <tr><td><code>routes/report.$sessionId.tsx</code></td><td>Session report with charts</td></tr>
+        <tr><td><code>routes/history.tsx</code></td><td>Session history list</td></tr>
+        <tr><td><code>routes/profile.tsx</code></td><td>Profile & preferences settings</td></tr>
+        <tr><td><code>components/AppSidebar.tsx</code></td><td>Navigation sidebar</td></tr>
+        <tr><td><code>components/group-session/useGroupSession.ts</code></td><td>WebRTC hook (core)</td></tr>
+        <tr><td><code>components/group-session/ParticipantTile.tsx</code></td><td>Video tile component</td></tr>
+        <tr><td><code>components/group-session/ControlBar.tsx</code></td><td>Media controls</td></tr>
+        <tr><td><code>components/group-session/ChatSidebar.tsx</code></td><td>Chat panel</td></tr>
+        <tr><td><code>components/group-session/AIPanel.tsx</code></td><td>AI partner panel</td></tr>
+        <tr><td><code>components/group-session/PeerRatingModal.tsx</code></td><td>Peer rating form</td></tr>
+        <tr><td><code>components/group-session/LeaveDialog.tsx</code></td><td>Leave confirmation</td></tr>
+        <tr><td><code>lib/api.ts</code></td><td>API client with auth</td></tr>
+        <tr><td><code>lib/useCurrentUser.ts</code></td><td>Auth state hook</td></tr>
+        <tr><td><code>lib/useAITopic.ts</code></td><td>Topic generation hook</td></tr>
+        <tr><td><code>lib/mock-data.ts</code></td><td>Development mock data</td></tr>
+        <tr><td><code>lib/utils.ts</code></td><td>cn() utility, helpers</td></tr>
+        <tr><td><code>hooks/usePageFocus.ts</code></td><td>Page visibility hook</td></tr>
+        <tr><td><code>hooks/use-mobile.tsx</code></td><td>Mobile breakpoint hook</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span style="color:var(--orange)">🧠</span> ml-server/</h3>
+      <table>
+        <tr><th>File</th><th>Purpose</th></tr>
+        <tr><td><code>main.py</code></td><td>FastAPI app, all endpoints, audio processing pipeline</td></tr>
+        <tr><td><code>CRNN.py</code></td><td>CRNN model definition + compute_fillers() function</td></tr>
+        <tr><td><code>Semantic.py</code></td><td>Semantic relevance scorer using MiniLM</td></tr>
+        <tr><td><code>filler_crnn_final.pth</code></td><td>Pre-trained CRNN model weights</td></tr>
+        <tr><td><code>requirements.txt</code></td><td>Python dependencies</td></tr>
+        <tr><td><code>segments_temp/</code></td><td>Temp storage for CRNN audio segments</td></tr>
+        <tr><td><code>temp/</code></td><td>Temp storage for uploaded audio files</td></tr>
+        <tr><td><code>.env</code></td><td>GOOGLE_API_KEY, ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID</td></tr>
+      </table>
+      <h3 style="margin-top:16px"><span style="color:var(--muted)">📄</span> Root Documentation</h3>
+      <table>
+        <tr><th>File</th><th>Purpose</th></tr>
+        <tr><td><code>README_VIDEO_CONFERENCING.md</code></td><td>Video conferencing setup guide</td></tr>
+        <tr><td><code>DEVELOPER_GUIDE.md</code></td><td>Developer setup and contribution guide</td></tr>
+        <tr><td><code>SYSTEM_ARCHITECTURE.md</code></td><td>Architecture overview</td></tr>
+        <tr><td><code>IMPLEMENTATION_SUMMARY.md</code></td><td>Implementation details</td></tr>
+        <tr><td><code>CHANGES_SUMMARY.md</code></td><td>Changelog</td></tr>
+        <tr><td><code>GD-report.md</code></td><td>GD session report format</td></tr>
+        <tr><td><code>INDEX.md</code></td><td>Documentation index</td></tr>
+      </table>
+      <h3 style="margin-top:16px"><span style="color:var(--yellow)">🔧</span> Config Files</h3>
+      <table>
+        <tr><th>File</th><th>Purpose</th></tr>
+        <tr><td><code>client/.env</code></td><td>VITE_SERVER_URL, VITE_ICE_SERVER_*</td></tr>
+        <tr><td><code>server/.env</code></td><td>PORT, MONGODB_URI, JWT_SECRET, CLIENT_ORIGINS</td></tr>
+        <tr><td><code>ml-server/.env</code></td><td>GOOGLE_API_KEY, ELEVENLABS_API_KEY</td></tr>
+        <tr><td><code>client/vite.config.ts</code></td><td>Vite + TanStack Router plugin config</td></tr>
+        <tr><td><code>client/tsconfig.app.json</code></td><td>TypeScript config for app</td></tr>
+        <tr><td><code>client/eslint.config.js</code></td><td>ESLint rules</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end #app -->
+
+<script>
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'graph') setTimeout(initGraph, 100);
+}
+
+// ── D3 Dependency Graph ───────────────────────────────────────────────────────
+let graphInitialized = false;
+function initGraph() {
+  if (graphInitialized) return;
+  graphInitialized = true;
+
+  const nodes = [
+    // Frontend
+    { id: 'react-client', label: 'React Client\n:5173', group: 'frontend', desc: 'React 19 + TypeScript + Vite\nTanStack Router + Query\nRadix UI + Tailwind CSS' },
+    { id: 'tanstack-router', label: 'TanStack Router\n(file-based)', group: 'frontend', desc: '11 routes\nFile-based routing\nScroll restoration\nError boundaries' },
+    { id: 'useGroupSession', label: 'useGroupSession\nhook', group: 'frontend', desc: 'WebRTC peer connections\nICE candidate buffering\nSocket.io signaling\nMedia stream management' },
+    { id: 'socket-client', label: 'Socket.io\nClient', group: 'frontend', desc: 'WebRTC signaling\nChat messages\nPeer state updates\nAuto-reconnect' },
+    { id: 'api-client', label: 'API Client\nlib/api.ts', group: 'frontend', desc: 'JWT Bearer auth\nAuto 401 redirect\n15s timeout\nApiError class' },
+    { id: 'webrtc', label: 'WebRTC\nP2P', group: 'frontend', desc: 'RTCPeerConnection\nICE/STUN/TURN\nMedia streams\nScreen sharing' },
+    // Backend
+    { id: 'express-server', label: 'Express Server\n:4000', group: 'backend', desc: 'Node.js ESM\nExpress 4.19\nHTTP + Socket.io\nGraceful shutdown' },
+    { id: 'socket-server', label: 'Socket.io\nServer', group: 'backend', desc: 'WebRTC signaling relay\nRoom management\nChat broadcast\nRate limiting (30/10s)' },
+    { id: 'auth-middleware', label: 'Auth\nMiddleware', group: 'middleware', desc: 'JWT verification\nrequireAuth guard\nbcrypt (12 rounds)\n7-day token expiry' },
+    { id: 'rate-limiter', label: 'Rate\nLimiter', group: 'middleware', desc: 'Auth: 20/15min (prod)\nAPI: per-user\nSocket: 30/10s\nIn-memory counters' },
+    { id: 'session-store', label: 'In-Memory\nSession Store', group: 'backend', desc: 'Live WebSocket state\nMap<sessionId, room>\nuserId deduplication\n5min TTL cleanup' },
+    { id: 'score-calc', label: 'Score\nCalculator', group: 'backend', desc: 'Fluency 35%\nRelevance 35%\nConfidence 30%\nFiller word penalty' },
+    // Routes
+    { id: 'auth-routes', label: '/api/auth', group: 'backend', desc: 'POST /register\nPOST /login\nGET /me\nPATCH /profile\nPATCH /preferences' },
+    { id: 'session-routes', label: '/api/sessions', group: 'backend', desc: 'POST / (create)\nGET /:id\nPOST /:id/join\nPOST /:id/leave\nPOST /:id/end' },
+    { id: 'report-routes', label: '/api/reports', group: 'backend', desc: 'POST /:id\nPATCH /:id/turn\nGET /:id/leaderboard\nGET /:id/summary' },
+    { id: 'peer-rating-routes', label: '/api/peer-ratings', group: 'backend', desc: 'POST /:id (submit)\nGET /:id/summary\nGET /:id/status' },
+    { id: 'history-routes', label: '/api/history', group: 'backend', desc: 'GET / (paginated)\nGET /stats\nGET /search?q=\nDELETE /:id' },
+    // Database
+    { id: 'mongodb', label: 'MongoDB\n(Mongoose)', group: 'database', desc: 'Mongoose 8.4\nAuto-retry connection\nIndexed queries\nMongoDB Atlas ready' },
+    { id: 'user-model', label: 'User\nModel', group: 'database', desc: 'name, email, password\nplan: free|pro\npreferences object\nbcrypt pre-save hook' },
+    { id: 'session-model', label: 'Session\nModel', group: 'database', desc: 'sessionId (unique)\nparticipants[]\nmessages[]\npeerRatings[]\nreports sub-schema' },
+    // ML Server
+    { id: 'ml-server', label: 'ML Server\n:5000', group: 'ml', desc: 'FastAPI + Uvicorn\nPython 3.11\nAsync endpoints\nCORS enabled' },
+    { id: 'whisper', label: 'Whisper ASR\ntiny.en', group: 'ml', desc: 'OpenAI Whisper\n15s audio chunks\nEnglish optimized\nFallback STT' },
+    { id: 'crnn', label: 'CRNN\nFiller Detector', group: 'ml', desc: 'Conv2D → GRU → Classifier\nMel-spectrogram input\n6 audio segments\nfiller_crnn_final.pth' },
+    { id: 'semantic', label: 'Semantic\nScorer', group: 'ml', desc: 'all-MiniLM-L6-v2\nCosine similarity\n≥0.50 threshold\nScore 1-10' },
+    { id: 'prosody', label: 'Prosody\nAnalysis', group: 'ml', desc: 'librosa + parselmouth\nWPM, pause ratio\nPitch stats, jitter\nnPVI rhythm index' },
+    // External
+    { id: 'gemini', label: 'Gemini 2.5\nFlash', group: 'external', desc: 'Topic generation\nScoring rubric\nAI feedback\nDiscussion partner' },
+    { id: 'elevenlabs', label: 'ElevenLabs\nTTS/STT', group: 'external', desc: 'Primary STT\nText-to-speech\nVoice ID configurable\nhttpx client' },
+    { id: 'stun', label: 'Google STUN\nServers', group: 'external', desc: 'stun.l.google.com:19302\nICE candidate discovery\nNAT traversal\nFallback: custom TURN' },
+  ];
+
+  const links = [
+    // Frontend internal
+    { source: 'react-client', target: 'tanstack-router', label: 'routes' },
+    { source: 'react-client', target: 'useGroupSession', label: 'hook' },
+    { source: 'react-client', target: 'api-client', label: 'REST calls' },
+    { source: 'useGroupSession', target: 'socket-client', label: 'signaling' },
+    { source: 'useGroupSession', target: 'webrtc', label: 'P2P' },
+    { source: 'webrtc', target: 'stun', label: 'ICE' },
+    // Frontend → Backend
+    { source: 'api-client', target: 'express-server', label: 'HTTP/REST' },
+    { source: 'socket-client', target: 'socket-server', label: 'WebSocket' },
+    // Backend internal
+    { source: 'express-server', target: 'auth-middleware', label: 'middleware' },
+    { source: 'express-server', target: 'rate-limiter', label: 'middleware' },
+    { source: 'express-server', target: 'socket-server', label: 'same process' },
+    { source: 'express-server', target: 'auth-routes', label: 'mount' },
+    { source: 'express-server', target: 'session-routes', label: 'mount' },
+    { source: 'express-server', target: 'report-routes', label: 'mount' },
+    { source: 'express-server', target: 'peer-rating-routes', label: 'mount' },
+    { source: 'express-server', target: 'history-routes', label: 'mount' },
+    { source: 'socket-server', target: 'session-store', label: 'read/write' },
+    { source: 'report-routes', target: 'score-calc', label: 'calculate' },
+    // Backend → Database
+    { source: 'auth-routes', target: 'user-model', label: 'CRUD' },
+    { source: 'session-routes', target: 'session-model', label: 'CRUD' },
+    { source: 'report-routes', target: 'session-model', label: 'update' },
+    { source: 'peer-rating-routes', target: 'session-model', label: 'update' },
+    { source: 'history-routes', target: 'session-model', label: 'query' },
+    { source: 'user-model', target: 'mongodb', label: 'Mongoose' },
+    { source: 'session-model', target: 'mongodb', label: 'Mongoose' },
+    // Backend → External
+    { source: 'session-routes', target: 'gemini', label: 'topic gen' },
+    // Frontend → ML
+    { source: 'api-client', target: 'ml-server', label: 'audio upload' },
+    // ML internal
+    { source: 'ml-server', target: 'whisper', label: 'ASR' },
+    { source: 'ml-server', target: 'crnn', label: 'filler detect' },
+    { source: 'ml-server', target: 'semantic', label: 'relevance' },
+    { source: 'ml-server', target: 'prosody', label: 'analysis' },
+    { source: 'ml-server', target: 'gemini', label: 'scoring + chat' },
+    { source: 'ml-server', target: 'elevenlabs', label: 'STT/TTS' },
+    { source: 'elevenlabs', target: 'whisper', label: 'fallback' },
+  ];
+
+  const colorMap = {
+    frontend: '#58a6ff', backend: '#3fb950', ml: '#f0883e',
+    database: '#bc8cff', external: '#d29922', middleware: '#f85149'
+  };
+
+  const container = document.getElementById('graph-canvas');
+  const W = container.clientWidth, H = container.clientHeight;
+
+  const svg = d3.select('#graph-canvas').append('svg')
+    .attr('width', W).attr('height', H);
+
+  // Defs: arrowhead
+  svg.append('defs').append('marker')
+    .attr('id', 'arrow').attr('viewBox', '0 -5 10 10')
+    .attr('refX', 28).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#30363d');
+
+  const g = svg.append('g');
+
+  // Zoom
+  svg.call(d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform)));
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(-400))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide(50));
+
+  const link = g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke', '#30363d').attr('stroke-width', 1.5)
+    .attr('marker-end', 'url(#arrow)');
+
+  const linkLabel = g.append('g').selectAll('text').data(links).join('text')
+    .attr('font-size', 9).attr('fill', '#8b949e').attr('text-anchor', 'middle');
+
+  const node = g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('cursor', 'grab')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+  node.append('circle').attr('r', 32)
+    .attr('fill', d => colorMap[d.group] + '22')
+    .attr('stroke', d => colorMap[d.group])
+    .attr('stroke-width', 2);
+
+  node.append('text').attr('text-anchor', 'middle').attr('dy', '-0.2em')
+    .attr('font-size', 10).attr('fill', '#e6edf3').attr('font-weight', 600)
+    .selectAll('tspan').data(d => d.label.split('\n')).join('tspan')
+    .attr('x', 0).attr('dy', (d, i) => i === 0 ? 0 : '1.2em')
+    .text(d => d);
+
+  // Tooltip
+  const tooltip = document.getElementById('tooltip');
+  node.on('mouseover', (e, d) => {
+    tooltip.style.display = 'block';
+    tooltip.innerHTML = `<strong style="color:${colorMap[d.group]}">${d.label.replace('\n', ' ')}</strong><br>${d.desc.replace(/\n/g, '<br>')}`;
+  }).on('mousemove', e => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  }).on('mouseout', () => { tooltip.style.display = 'none'; });
+
+  sim.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    linkLabel.attr('x', d => (d.source.x + d.target.x) / 2)
+             .attr('y', d => (d.source.y + d.target.y) / 2)
+             .text(d => d.label);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+</script>
+</body>
+</html>
