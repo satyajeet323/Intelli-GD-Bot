@@ -19,7 +19,7 @@ npm run dev
 ```
 cd ml-server
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
+uvicorn main:app --port 8000
 
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 

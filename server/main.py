@@ -563,10 +563,10 @@ E) Filler Segments -> 'fillers_score'
   "pause_time_score": int,
   "pitch_variability_score": int,
   "rhythm_variability_score": int,
-  "fillers_score" : int,
+  "fillers_score": int
 }}
 
-7) Special rules for mistakes and improvements:
+8) Special rules for mistakes and improvements:
 - Return your response as a JSON object with exactly two fields:
 1. "grammatical_mistake": A list of objects. Each object should have:
    - "mistake": The exact erroneous phrase or sentence with a short explanation.

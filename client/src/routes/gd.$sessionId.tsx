@@ -463,21 +463,21 @@ function FluencyResults({
 }) {
   const { scores, prosody, transcript, overallScore } = result;
 
-  const languageScores = [
-    { label: "Vocabulary", value: scores.vocabulary_score },
-    { label: "Grammar",    value: scores.grammar_score },
-    { label: "Sentence",   value: scores.sentence_correctness_score },
-    { label: "Coherence",  value: scores.coherence_score },
-    { label: "Clarity",    value: scores.clarity_score },
-    { label: "Relevance",  value: scores.relevance_score },
+  const languageScores: { label: string; value: number }[] = [
+    { label: "Vocabulary", value: scores.vocabulary_score ?? 0 },
+    { label: "Grammar",    value: scores.grammar_score ?? 0 },
+    { label: "Sentence",   value: scores.sentence_correctness_score ?? 0 },
+    { label: "Coherence",  value: scores.coherence_score ?? 0 },
+    { label: "Clarity",    value: scores.clarity_score ?? 0 },
+    { label: "Relevance",  value: scores.relevance_score ?? 0 },
   ];
 
-  const prosodyScores = [
-    { label: "Speech Rate", value: scores.speech_rate_score },
-    { label: "Pause Time",  value: scores.pause_time_score },
-    { label: "Pitch",       value: scores.pitch_variability_score },
-    { label: "Rhythm",      value: scores.rhythm_variability_score },
-    { label: "Fillers",     value: scores.fillers_score },
+  const prosodyScores: { label: string; value: number }[] = [
+    { label: "Speech Rate", value: scores.speech_rate_score ?? 0 },
+    { label: "Pause Time",  value: scores.pause_time_score ?? 0 },
+    { label: "Pitch",       value: scores.pitch_variability_score ?? 0 },
+    { label: "Rhythm",      value: scores.rhythm_variability_score ?? 0 },
+    { label: "Fillers",     value: scores.fillers_score ?? 0 },
   ];
 
   return (
@@ -535,7 +535,7 @@ function FluencyResults({
       </div>
 
       {/* Grammar feedback */}
-      {scores.grammatical_mistake && (
+      {!!scores.grammatical_mistake && (
         <div className="glass rounded-2xl p-5 border border-warning/20">
           <h3 className="font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Grammar Feedback</h3>
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{toStr(scores.grammatical_mistake)}</p>
@@ -543,7 +543,7 @@ function FluencyResults({
       )}
 
       {/* Improvement tips */}
-      {scores.improvement_needed && (
+      {!!scores.improvement_needed && (
         <div className="glass rounded-2xl p-5 border border-accent/20">
           <h3 className="font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Improvement Tips</h3>
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{toStr(scores.improvement_needed)}</p>
@@ -573,7 +573,7 @@ function FluencyResults({
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function ScoreCard({ label, value }: { label: string; value: number }) {
+function ScoreCard({ label, value }: { label: string; value: number }): React.JSX.Element {
   const tone = scoreTone(value);
   const borderBg = { good: "border-success/30 bg-success/5", warn: "border-warning/30 bg-warning/5", bad: "border-destructive/30 bg-destructive/5" } as const;
   const textColor = { good: "text-success", warn: "text-warning", bad: "text-destructive" } as const;
