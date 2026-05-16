@@ -3,6 +3,7 @@ import uuid
 import sqlite3
 import json
 import subprocess
+import requests as _ext_requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.genai as genai_new
@@ -527,6 +528,11 @@ def generate_fluency_topic():
 
 @app.route('/api/fluency/upload', methods=['POST'])
 def upload_fluency_audio():
+    """
+    Receive a WebM audio file, transcribe it with Whisper via the FastAPI
+    service (main.py on port 8000), and return the real transcript + prosody.
+    Falls back to a minimal error response — never returns mock data.
+    """
     try:
         if 'audio' not in request.files:
             return jsonify({'error': 'No audio file provided'}), 400
@@ -535,85 +541,51 @@ def upload_fluency_audio():
         if audio_file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
-        # Use absolute path — avoids Windows CWD issues
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(base_dir, 'temp_audio')
-        
-        # Ensure directory exists
-        os.makedirs(temp_dir, exist_ok=True)
-        print(f"[DEBUG] temp_dir: {temp_dir}")
-        print(f"[DEBUG] temp_dir exists: {os.path.isdir(temp_dir)}")
-
-        file_id = str(uuid.uuid4())[:8]
-        filename = f"fluency_{file_id}.webm"
-        file_path = os.path.join(temp_dir, filename)
-        print(f"[DEBUG] Saving to: {file_path}")
-
-        audio_file.save(file_path)
-        print(f"[DEBUG] File saved successfully")
-
-        # Clean up
-        try:
-            os.remove(file_path)
-        except:
-            pass
-
-        mock_transcript = "This is a mock transcript for testing."
-        mock_prosody = {
-            "duration_sec": 45.2,
-            "speech_rate_wpm": 120,
-            "syllable_nuclei_count": 85,
-            "nPVI": 35.4,
-            "pause_ratio": 0.08,
-            "total_pause_s": 3.6,
-            "fillers": {"total_count": 2, "details": ["um", "uh"]}
-        }
-
-        return jsonify({
-            "transcript": mock_transcript,
-            "prosody": mock_prosody,
-            "file_id": file_id
-        })
+        # Forward the audio to the FastAPI service (main.py) which runs Whisper
+        fastapi_url = os.getenv("PYTHON_SERVICE_URL", "http://localhost:8000")
+        files = {"audio": (audio_file.filename or "audio.webm",
+                           audio_file.stream,
+                           audio_file.content_type or "audio/webm")}
+        resp = _ext_requests.post(
+            f"{fastapi_url}/api/fluency/upload",
+            files=files,
+            timeout=120
+        )
+        resp.raise_for_status()
+        return jsonify(resp.json())
 
     except Exception as e:
         import traceback
-        print(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        print(f"[ERROR] upload_fluency_audio:\n{traceback.format_exc()}")
         return jsonify({'error': f'Failed to process audio: {str(e)}'}), 500
 
 
         
 @app.route('/api/fluency/score', methods=['POST'])
 def score_fluency():
-    """Score fluency based on transcript and prosody data"""
+    """
+    Score fluency by forwarding the transcript + prosody to the FastAPI
+    service (main.py on port 8000) which calls Gemini with the real data.
+    Never returns mock/static scores.
+    """
     try:
         data = request.get_json()
-        transcript = data.get('transcript', '')
-        topic = data.get('topic', '')
-        prosody = data.get('prosody', {})
-        
+        transcript = (data or {}).get('transcript', '').strip()
+        topic = (data or {}).get('topic', '').strip()
+
         if not transcript or not topic:
             return jsonify({'error': 'Transcript and topic are required'}), 400
-            
-        # For now, return mock scores
-        # In a real implementation, this would use the Gemini API to analyze the transcript
-        mock_score = {
-            "vocabulary_score": 7,
-            "grammar_score": 8,
-            "sentence_correctness_score": 7,
-            "coherence_score": 6,
-            "clarity_score": 8,
-            "relevance_score": 7,
-            "speech_rate_score": 8,
-            "pause_time_score": 7,
-            "pitch_variability_score": 6,
-            "rhythm_variability_score": 7,
-            "fillers_score": 8,
-            "grammatical_mistake": "Minor issues with article usage. Consider using 'the' before specific nouns.",
-            "improvement_needed": "Good overall fluency! To improve further:\n1. Reduce filler words like 'um' and 'uh'\n2. Work on maintaining consistent speech pace\n3. Practice using more varied vocabulary\n4. Focus on clear pronunciation of consonant clusters"
-        }
-        
-        return jsonify({"score": mock_score})
-        
+
+        fastapi_url = os.getenv("PYTHON_SERVICE_URL", "http://localhost:8000")
+        resp = _ext_requests.post(
+            f"{fastapi_url}/api/fluency/score",
+            json=data,
+            headers={"Content-Type": "application/json"},
+            timeout=90
+        )
+        resp.raise_for_status()
+        return jsonify(resp.json())
+
     except Exception as e:
         print(f"Error scoring fluency: {str(e)}")
         return jsonify({'error': f'Failed to score fluency: {str(e)}'}), 500
