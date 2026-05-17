@@ -8,7 +8,6 @@ import { useTheme } from "@/hooks/useTheme";
 const NAKED_ROUTES        = new Set(["/", "/login", "/register"]);
 const FULLSCREEN_PREFIXES = ["/group-session/"];
 const FIXED_HEIGHT_ROUTES = ["/gd/"];
-// Admin routes manage their own layout entirely
 const ADMIN_PREFIX        = "/admin";
 
 type RouteConfig = { title: string; backTo: string | null };
@@ -28,15 +27,12 @@ function getRouteConfig(pathname: string): RouteConfig {
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="max-w-md text-center glass rounded-2xl p-10">
-        <h1 className="text-7xl font-display font-bold gradient-text">404</h1>
-        <h2 className="mt-3 text-xl font-semibold">Lost in the discussion</h2>
-        <p className="mt-2 text-sm text-muted-foreground">This page isn't on our agenda.</p>
-        <Link
-          to="/dashboard"
-          className="mt-6 inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-80 transition"
-        >
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--ib-bg)" }}>
+      <div className="max-w-md text-center ib-card p-10">
+        <h1 className="font-display text-7xl gradient-text">404</h1>
+        <h2 className="mt-3 font-display text-2xl" style={{ color: "var(--ib-fg)" }}>Lost in the discussion</h2>
+        <p className="mt-2 text-sm font-body" style={{ color: "var(--ib-mut2)" }}>This page isn't on our agenda.</p>
+        <Link to="/dashboard" className="btn-primary mt-6 inline-flex">
           Back to Dashboard
         </Link>
       </div>
@@ -55,11 +51,17 @@ function ThemeToggle() {
     <button
       onClick={toggle}
       aria-label="Toggle theme"
-      className="h-8 w-8 rounded-lg flex items-center justify-center border border-border/60 bg-background/60 hover:bg-muted transition-colors shrink-0"
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      className="h-7 w-7 flex items-center justify-center shrink-0 transition-colors"
+      style={{
+        border: "1px solid var(--ib-bdr)",
+        background: "transparent",
+        color: "var(--ib-mut2)",
+      }}
     >
       {theme === "dark"
-        ? <Sun  className="h-4 w-4 text-muted-foreground" />
-        : <Moon className="h-4 w-4 text-muted-foreground" />
+        ? <Sun  className="h-3.5 w-3.5" />
+        : <Moon className="h-3.5 w-3.5" />
       }
     </button>
   );
@@ -71,10 +73,9 @@ function RootComponent() {
   const fullscreen = FULLSCREEN_PREFIXES.some((p) => pathname.startsWith(p));
   const isAdmin    = pathname.startsWith(ADMIN_PREFIX);
 
-  // Apply theme class on every render path
+  // Keep theme class applied on every render
   useTheme();
 
-  // Admin routes render their own layout — just pass through
   if (isAdmin) {
     return (
       <>
@@ -98,28 +99,39 @@ function RootComponent() {
 
   return (
     <SidebarProvider>
-      <div className="h-screen overflow-hidden flex w-full">
+      <div className="h-screen overflow-hidden flex w-full" style={{ background: "var(--ib-bg)" }}>
         <AppSidebar />
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
           {/* Top bar */}
-          <header className="h-14 shrink-0 flex items-center gap-3 border-b border-border/50 px-4 bg-background/80 backdrop-blur-xl z-30">
-
-            <SidebarTrigger className="hover:bg-muted shrink-0" />
+          <header
+            className="h-12 shrink-0 flex items-center gap-3 px-4 z-30"
+            style={{
+              background: "var(--ib-surf)",
+              borderBottom: "1px solid var(--ib-bdr)",
+            }}
+          >
+            <SidebarTrigger
+              className="h-7 w-7 flex items-center justify-center shrink-0 transition-colors"
+              style={{ color: "var(--ib-mut2)" }}
+            />
 
             {backTo && (
               <Link
                 to={backTo as never}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all shrink-0"
+                className="btn-ghost inline-flex items-center gap-1.5 text-xs py-1 px-2.5"
               >
-                <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
-                <span>Back</span>
+                <ArrowLeft className="h-3 w-3" />
+                Back
               </Link>
             )}
 
             {title && (
-              <span className="text-sm font-semibold text-foreground truncate">
+              <span
+                className="font-display text-sm tracking-widest uppercase"
+                style={{ color: "var(--ib-fg)" }}
+              >
                 {title}
               </span>
             )}
@@ -131,10 +143,22 @@ function RootComponent() {
             <Link
               to="/gd/$sessionId"
               params={{ sessionId: "new" }}
-              className="hidden sm:inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-border/60 bg-background/60 hover:bg-muted transition-all shrink-0"
+              className="hidden sm:inline-flex items-center gap-2 text-xs px-3 py-1.5"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: "0.6rem",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--ib-amber)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                background: "rgba(245,158,11,0.06)",
+              }}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-              Start fluency session
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: "var(--ib-ok)", animation: "pulse 2s infinite" }}
+              />
+              Start Session
             </Link>
           </header>
 
@@ -147,9 +171,24 @@ function RootComponent() {
             <Outlet />
           </main>
 
+          {/* Status bar */}
+          <StatusBar />
         </div>
       </div>
       <Toaster />
     </SidebarProvider>
+  );
+}
+
+function StatusBar() {
+  return (
+    <div className="ib-status-bar shrink-0">
+      <span style={{ color: "var(--ib-ok)" }}>● CLIENT :5173</span>
+      <span>● API :4000</span>
+      <span>● ML :8000</span>
+      <span style={{ color: "var(--ib-ok)" }}>● SOCKET CONNECTED</span>
+      <span>● DB OK</span>
+      <span style={{ marginLeft: "auto" }}>INTELLI BOT v2.0</span>
+    </div>
   );
 }

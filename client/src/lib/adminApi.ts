@@ -11,9 +11,12 @@ export function getAdminToken(): string | null {
 }
 export function setAdminToken(t: string) {
   localStorage.setItem(ADMIN_TOKEN_KEY, t);
+  // Notify same-tab listeners (storage event only fires in other tabs)
+  window.dispatchEvent(new CustomEvent("adminTokenChange", { detail: t }));
 }
 export function clearAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_KEY);
+  window.dispatchEvent(new CustomEvent("adminTokenChange", { detail: null }));
 }
 export function isAdminAuthenticated(): boolean {
   return !!getAdminToken();

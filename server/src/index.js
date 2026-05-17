@@ -1,5 +1,5 @@
 /**
- * index.js — GD Bot Backend — Fully Integrated System
+ * index.js — INTELLI BOT Backend — Fully Integrated System
  *
  * Modules wired together:
  *  ✓ MongoDB (Mongoose)       — persistent storage for users, sessions, reports
@@ -370,7 +370,7 @@ if (!IS_PROD) {
 httpServer.listen(PORT, () => {
   const line = "═".repeat(50);
   console.log(`\n╔${line}╗`);
-  console.log(`║${"  GD Bot Backend — All Modules Integrated".padEnd(50)}║`);
+  console.log(`║${"  INTELLI BOT Backend — All Modules Integrated".padEnd(50)}║`);
   console.log(`╠${line}╣`);
   console.log(`║  REST   →  http://localhost:${PORT}/api${"".padEnd(18)}║`);
   console.log(`║  WS     →  ws://localhost:${PORT}${"".padEnd(21)}║`);

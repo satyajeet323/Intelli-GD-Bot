@@ -430,7 +430,7 @@ app.get("/api/health", (req, res) => {
 
   res.status(200).json({
     status:    "success",
-    message:   "GD Bot API is running",
+    message:   "INTELLI BOT API is running",
     timestamp: new Date().toISOString(),
     database: {
       status:    dbStatusMap[dbStatus] || "unknown",
@@ -501,7 +501,7 @@ const startServer = async () => {
   }
   
   app.listen(PORT, () => {
-    console.log(`\n🚀 GD Bot Server running on port ${PORT}`);
+    console.log(`\n🚀 INTELLI BOT Server running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🎤 Fluency (FastAPI): http://localhost:8000`);

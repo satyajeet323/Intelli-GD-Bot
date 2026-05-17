@@ -3,16 +3,15 @@ import { useState, useEffect } from "react";
 import { adminAuth, adminAnalytics, type AdminUser } from "@/lib/adminApi";
 import { useTheme } from "@/hooks/useTheme";
 import {
-  LayoutDashboard, Users, Shield, MessageSquare, CreditCard,
-  Bell, BarChart3, FileText, Settings, LogOut, Menu, X,
-  Sun, Moon, ChevronRight, Activity, Database, Flag,
-  UserCog, Mic, AlertTriangle,
+  LayoutDashboard, Users, Shield, Bell, CreditCard,
+  BarChart3, FileText, Settings, LogOut, Menu, X,
+  ChevronRight, Activity, UserCog, Mic, Sun, Moon,
 } from "lucide-react";
 
 type NavItem = {
   title: string;
-  icon: typeof LayoutDashboard;
-  href: string;
+  icon:  typeof LayoutDashboard;
+  href:  string;
   badge?: string;
 };
 
@@ -32,13 +31,12 @@ const NAV: NavItem[] = [
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { theme, toggle } = useTheme();
-  const [admin, setAdmin]       = useState<AdminUser | null>(null);
+  const [admin,       setAdmin]       = useState<AdminUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [wsCount, setWsCount]   = useState(0);
+  const [wsCount,     setWsCount]     = useState(0);
 
   useEffect(() => {
     adminAuth.me().then((r) => setAdmin(r.admin)).catch(() => {});
-    // Poll live metrics every 30s
     const poll = () => adminAnalytics.overview().then((r) => {
       const ov = r.overview as Record<string, number>;
       setWsCount(ov.wsConnections ?? 0);
@@ -51,11 +49,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const initials = admin?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "A";
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
+    <div className="h-screen flex overflow-hidden" style={{ background: "var(--ib-bg)" }}>
+
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40"
+          style={{ background: "rgba(12,11,9,0.8)" }}
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -63,32 +63,39 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r border-border/50 bg-sidebar transition-transform duration-200",
+          "fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-200",
           "lg:relative lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
+        style={{ background: "var(--ib-surf)", borderRight: "1px solid var(--ib-bdr)" }}
       >
         {/* Logo */}
-        <div className="h-14 flex items-center gap-3 px-4 border-b border-border/50 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-center">
-            <Shield className="h-4 w-4 text-destructive" />
+        <div className="h-14 flex items-center gap-3 px-4 shrink-0" style={{ borderBottom: "1px solid var(--ib-bdr)" }}>
+          <div
+            className="h-8 w-8 flex items-center justify-center"
+            style={{ background: "rgba(192,132,252,0.15)", border: "1px solid rgba(192,132,252,0.3)", clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%)" }}
+          >
+            <Shield className="h-4 w-4" style={{ color: "var(--ib-purple)" }} />
           </div>
           <div>
-            <div className="font-display font-bold text-sm">Admin Panel</div>
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">GD Bot</div>
+            <div className="font-display text-sm" style={{ color: "var(--ib-fg)", letterSpacing: "0.08em" }}>Admin Panel</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+              INTELLI<span style={{ color: "var(--ib-amber)" }}>BOT</span>
+            </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="ml-auto lg:hidden text-muted-foreground hover:text-foreground"
+            className="ml-auto lg:hidden"
+            style={{ color: "var(--ib-muted)" }}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Live indicator */}
-        <div className="px-4 py-2 border-b border-border/50">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+        <div className="px-4 py-2 shrink-0" style={{ borderBottom: "1px solid var(--ib-bdr)" }}>
+          <div className="flex items-center gap-2" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--ib-ok)" }} />
             {wsCount} live connections
           </div>
         </div>
@@ -102,17 +109,24 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 to={item.href as never}
                 onClick={() => setSidebarOpen(false)}
-                className={[
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent",
-                ].join(" ")}
+                className="flex items-center gap-3 px-3 py-2 transition-colors"
+                style={{
+                  background: active ? "rgba(192,132,252,0.1)" : "transparent",
+                  borderLeft: active ? "2px solid var(--ib-purple)" : "2px solid transparent",
+                  color: active ? "var(--ib-purple)" : "var(--ib-mut2)",
+                  fontFamily: "'JetBrains Mono',monospace",
+                  fontSize: "0.65rem",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 <span className="flex-1">{item.title}</span>
                 {item.badge && (
-                  <span className="rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 font-bold">
+                  <span
+                    className="text-xs px-1.5 py-0.5 font-bold"
+                    style={{ background: "rgba(220,138,107,0.15)", color: "var(--ib-terra)", border: "1px solid rgba(220,138,107,0.3)", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem" }}
+                  >
                     {item.badge}
                   </span>
                 )}
@@ -122,22 +136,34 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-border/50 shrink-0">
-          <div className="rounded-xl border border-border/50 bg-muted/30 p-3 space-y-2">
+        <div className="p-3 shrink-0" style={{ borderTop: "1px solid var(--ib-bdr)" }}>
+          <div className="p-3 space-y-2" style={{ border: "1px solid var(--ib-bdr)", background: "var(--ib-card)" }}>
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-full bg-destructive/10 border border-destructive/20 flex items-center justify-center text-xs font-bold text-destructive shrink-0">
+              <div
+                className="h-8 w-8 flex items-center justify-center text-xs font-bold shrink-0"
+                style={{
+                  background: "rgba(192,132,252,0.12)",
+                  border: "1px solid rgba(192,132,252,0.3)",
+                  color: "var(--ib-purple)",
+                  fontFamily: "'JetBrains Mono',monospace",
+                  clipPath: "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%)",
+                }}
+              >
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{admin?.name ?? "Admin"}</div>
-                <div className="text-[11px] text-muted-foreground truncate">
-                  {admin?.isSuperAdmin ? "Super Admin" : (admin?.role as { name?: string })?.name ?? "Admin"}
+                <div className="text-sm truncate" style={{ color: "var(--ib-fg)", fontFamily: "'DM Sans',sans-serif", fontWeight: 400 }}>
+                  {admin?.name ?? "Admin"}
                 </div>
+                <span className="ib-chip-purple" style={{ display: "inline-block", marginTop: "2px" }}>
+                  {admin?.isSuperAdmin ? "Super Admin" : (admin?.role as { name?: string })?.name ?? "Admin"}
+                </span>
               </div>
             </div>
             <button
               onClick={() => adminAuth.logout()}
-              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+              className="flex items-center gap-2 w-full"
+              style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ib-muted)" }}
             >
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
@@ -147,45 +173,50 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
         {/* Top bar */}
-        <header className="h-14 shrink-0 flex items-center gap-3 border-b border-border/50 px-4 bg-background/80 backdrop-blur-xl z-30">
+        <header
+          className="h-14 shrink-0 flex items-center gap-3 px-4 z-30"
+          style={{ background: "var(--ib-surf)", borderBottom: "1px solid var(--ib-bdr)" }}
+        >
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center border border-border/60 hover:bg-muted transition-colors"
+            className="lg:hidden h-8 w-8 flex items-center justify-center transition-colors"
+            style={{ border: "1px solid var(--ib-bdr)", color: "var(--ib-muted)" }}
           >
             <Menu className="h-4 w-4" />
           </button>
 
           {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
             <span>Admin</span>
             <ChevronRight className="h-3.5 w-3.5" />
-            <span className="text-foreground font-medium capitalize">
+            <span style={{ color: "var(--ib-purple)" }}>
               {pathname.split("/admin/")[1]?.split("/")[0] ?? "Dashboard"}
             </span>
           </div>
 
           <div className="flex-1" />
 
-          {/* Status indicators */}
-          <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Activity className="h-3.5 w-3.5 text-success" />
-              <span>System OK</span>
-            </div>
+          <div className="hidden sm:flex items-center gap-1.5" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+            <Activity className="h-3.5 w-3.5" style={{ color: "var(--ib-ok)" }} />
+            <span>System OK</span>
           </div>
 
           <button
             onClick={toggle}
-            className="h-8 w-8 rounded-lg flex items-center justify-center border border-border/60 bg-background/60 hover:bg-muted transition-colors"
             aria-label="Toggle theme"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="h-8 w-8 flex items-center justify-center transition-colors"
+            style={{ border: "1px solid var(--ib-bdr)", background: "transparent", color: "var(--ib-mut2)" }}
           >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
 
           <Link
             to="/dashboard"
-            className="hidden sm:inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border/60 hover:bg-muted transition-colors"
+            className="hidden sm:inline-flex items-center gap-1.5 btn-ghost"
+            style={{ padding: "0.35rem 0.875rem", fontSize: "0.6rem" }}
           >
             ← Main App
           </Link>
@@ -194,6 +225,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto scrollbar-thin">
           {children}
         </main>
+
+        {/* Status bar */}
+        <div className="ib-status-bar shrink-0">
+          <span style={{ color: "var(--ib-ok)" }}>● CLIENT :5173</span>
+          <span>● API :4000</span>
+          <span>● ML :8000</span>
+          <span style={{ color: "var(--ib-ok)" }}>● SOCKET CONNECTED</span>
+          <span style={{ marginLeft: "auto" }}>ADMIN PANEL v2.0</span>
+        </div>
       </div>
     </div>
   );
