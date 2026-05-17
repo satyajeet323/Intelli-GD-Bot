@@ -11,8 +11,8 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Profile — GD Bot" },
-      { name: "description", content: "Your GD Bot profile and preferences." },
+      { title: "Profile — INTELLI BOT" },
+      { name: "description", content: "Your INTELLI BOT profile and preferences." },
     ],
   }),
   component: ProfilePage,
@@ -21,20 +21,14 @@ export const Route = createFileRoute("/profile")({
 type Prefs = NonNullable<User["preferences"]>;
 
 const DEFAULT_PREFS: Prefs = {
-  micEnabled:        true,
-  noiseSuppression:  true,
-  echoCancellation:  true,
-  practiceReminders: true,
-  sessionSummary:    true,
-  weeklyReport:      false,
-  aiPersona:         "friendly",
+  micEnabled: true, noiseSuppression: true, echoCancellation: true,
+  practiceReminders: true, sessionSummary: true, weeklyReport: false,
+  aiPersona: "friendly",
 };
 
-// ── Toggle switch ─────────────────────────────────────────────────────────────
+/* ── Toggle — uses CSS vars so it works in both themes ───────────────────── */
 function Toggle({ checked, onChange, disabled }: {
-  checked:  boolean;
-  onChange: (v: boolean) => void;
-  disabled?: boolean;
+  checked: boolean; onChange: (v: boolean) => void; disabled?: boolean;
 }) {
   return (
     <button
@@ -43,53 +37,60 @@ function Toggle({ checked, onChange, disabled }: {
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed ${
-        checked ? "bg-primary" : "bg-border"
-      }`}
+      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{
+        background: checked ? "var(--ib-amber)" : "var(--ib-bdr)",
+        clipPath: "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%)",
+      }}
     >
+      {/* Thumb — uses foreground so it's visible on both dark and light amber */}
       <span
-        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0"
-        }`}
+        className="pointer-events-none inline-block h-5 w-5 transform transition-transform"
+        style={{
+          background: checked ? "var(--ib-bg)" : "var(--ib-fg)",
+          margin: "2px",
+          transform: checked ? "translateX(20px)" : "translateX(0)",
+          opacity: checked ? 1 : 0.5,
+        }}
       />
     </button>
   );
 }
 
-// ── Section wrapper ───────────────────────────────────────────────────────────
-function Section({
-  icon: Icon, label, desc, tint, open, onToggle, children,
-}: {
-  icon:     React.ElementType;
-  label:    string;
-  desc:     string;
-  tint:     string;
-  open:     boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
+/* ── Section ─────────────────────────────────────────────────────────────── */
+function Section({ icon: Icon, label, desc, accentColor, open, onToggle, children }: {
+  icon: React.ElementType; label: string; desc: string; accentColor: string;
+  open: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+    <div style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)" }}>
       <button
         type="button"
         onClick={onToggle}
-        className="w-full text-left flex items-center gap-3 p-4 hover:bg-muted/40 transition-colors"
+        className="w-full text-left flex items-center gap-3 p-4 transition-colors hover:bg-[var(--ib-card2)]"
+        style={{ borderBottom: open ? "1px solid var(--ib-bdr)" : "none" }}
         aria-expanded={open}
       >
-        <div className={`h-9 w-9 rounded-lg ${tint} flex items-center justify-center shrink-0`}>
-          <Icon className="h-4 w-4" />
+        <div
+          className="h-9 w-9 flex items-center justify-center shrink-0"
+          style={{
+            background: "var(--ib-card2)",
+            border: `1px solid var(--ib-bdr)`,
+          }}
+        >
+          <Icon className="h-4 w-4" style={{ color: accentColor }} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm">{label}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
+          <div className="font-display text-base" style={{ color: "var(--ib-fg)" }}>{label}</div>
+          <div className="text-xs mt-0.5" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>{desc}</div>
         </div>
         {open
-          ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-          : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          ? <ChevronUp  className="h-4 w-4 shrink-0" style={{ color: "var(--ib-muted)" }} />
+          : <ChevronDown className="h-4 w-4 shrink-0" style={{ color: "var(--ib-muted)" }} />
         }
       </button>
       {open && (
-        <div className="px-4 pb-5 pt-1 border-t border-border/40 space-y-4 animate-fade-in">
+        <div className="px-5 pb-5 pt-4 space-y-4 animate-fade-in">
           {children}
         </div>
       )}
@@ -97,457 +98,303 @@ function Section({
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
-function ProfilePage() {
-  const { user, loading } = useCurrentUser();
-  const prefs = { ...DEFAULT_PREFS, ...user?.preferences };
-
-  // Which panel is open
-  const [openPanel, setOpenPanel] = useState<string | null>(null);
-  const toggle = (id: string) => setOpenPanel((p) => (p === id ? null : id));
-
-  const initials  = user?.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-    : "?";
-  const planLabel = user?.plan === "pro" ? "Pro plan" : "Free plan";
-
-  return (
-    <div className="px-4 sm:px-8 py-8 max-w-4xl mx-auto animate-fade-in">
-      <header className="mb-8">
-        <h1 className="font-display text-3xl font-bold tracking-tight">
-          Your <span className="gradient-text">profile</span>
-        </h1>
-      </header>
-
-      {/* Identity card */}
-      <div className="rounded-3xl border border-border/50 bg-card p-8 mb-6">
-        {loading ? (
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Loading profile…</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-2xl bg-primary flex items-center justify-center text-2xl font-bold text-primary-foreground shadow-glow select-none">
-              {initials}
-            </div>
-            <div>
-              <div className="font-display text-2xl font-semibold">{user?.name ?? "—"}</div>
-              <div className="text-sm text-muted-foreground">
-                {user?.email ?? "—"} · {planLabel}
-              </div>
-              <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                Active practitioner
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Settings panels */}
-      <div className="space-y-3">
-        {/* ── Audio settings ── */}
-        <Section
-          icon={Mic2}
-          label="Audio settings"
-          desc="Microphone, noise suppression, echo cancellation"
-          tint="bg-muted"
-          open={openPanel === "audio"}
-          onToggle={() => toggle("audio")}
-        >
-          <AudioPanel prefs={prefs} />
-        </Section>
-
-        {/* ── Notifications ── */}
-        <Section
-          icon={Bell}
-          label="Notifications"
-          desc="Practice reminders, session summaries, weekly reports"
-          tint="bg-muted"
-          open={openPanel === "notifications"}
-          onToggle={() => toggle("notifications")}
-        >
-          <NotificationsPanel prefs={prefs} />
-        </Section>
-
-        {/* ── AI persona ── */}
-        <Section
-          icon={Sparkles}
-          label="AI persona"
-          desc="Choose how your AI discussion partner behaves"
-          tint="bg-muted"
-          open={openPanel === "persona"}
-          onToggle={() => toggle("persona")}
-        >
-          <PersonaPanel prefs={prefs} />
-        </Section>
-
-        {/* ── Account ── */}
-        <Section
-          icon={Settings}
-          label="Account"
-          desc="Update your name and password"
-          tint="bg-muted"
-          open={openPanel === "account"}
-          onToggle={() => toggle("account")}
-        >
-          <AccountPanel user={user} />
-        </Section>
-      </div>
-
-      {/* Sign out */}
-      <div className="mt-6 pt-6 border-t border-border/40">
-        <button
-          onClick={() => auth.logout()}
-          className="inline-flex items-center gap-2 rounded-xl glass border border-destructive/30 px-5 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition"
-        >
-          <LogOut className="h-4 w-4" /> Sign out
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Audio panel ───────────────────────────────────────────────────────────────
-function AudioPanel({ prefs }: { prefs: Prefs }) {
-  const [local,   setLocal]   = useState({ ...prefs });
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-
-  const update = (key: keyof Prefs, val: boolean) =>
-    setLocal((p) => ({ ...p, [key]: val }));
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await auth.updatePreferences({
-        micEnabled:       local.micEnabled,
-        noiseSuppression: local.noiseSuppression,
-        echoCancellation: local.echoCancellation,
-      });
-      setSaved(true);
-      toast.success("Audio settings saved.");
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err: unknown) {
-      toast.error((err as Error).message ?? "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <ToggleRow
-        label="Microphone enabled"
-        desc="Allow the app to use your microphone during sessions"
-        checked={local.micEnabled}
-        onChange={(v) => update("micEnabled", v)}
-      />
-      <ToggleRow
-        label="Noise suppression"
-        desc="Filter background noise from your audio stream"
-        checked={local.noiseSuppression}
-        onChange={(v) => update("noiseSuppression", v)}
-      />
-      <ToggleRow
-        label="Echo cancellation"
-        desc="Prevent audio feedback when using speakers"
-        checked={local.echoCancellation}
-        onChange={(v) => update("echoCancellation", v)}
-      />
-      <SaveButton saving={saving} saved={saved} onClick={save} />
-    </>
-  );
-}
-
-// ── Notifications panel ───────────────────────────────────────────────────────
-function NotificationsPanel({ prefs }: { prefs: Prefs }) {
-  const [local,  setLocal]  = useState({ ...prefs });
-  const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
-
-  const update = (key: keyof Prefs, val: boolean) =>
-    setLocal((p) => ({ ...p, [key]: val }));
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await auth.updatePreferences({
-        practiceReminders: local.practiceReminders,
-        sessionSummary:    local.sessionSummary,
-        weeklyReport:      local.weeklyReport,
-      });
-      setSaved(true);
-      toast.success("Notification preferences saved.");
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err: unknown) {
-      toast.error((err as Error).message ?? "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <ToggleRow
-        label="Practice reminders"
-        desc="Daily nudges to keep your discussion streak going"
-        checked={local.practiceReminders}
-        onChange={(v) => update("practiceReminders", v)}
-      />
-      <ToggleRow
-        label="Session summary"
-        desc="Receive a summary email after each completed session"
-        checked={local.sessionSummary}
-        onChange={(v) => update("sessionSummary", v)}
-      />
-      <ToggleRow
-        label="Weekly report"
-        desc="Get a weekly digest of your performance trends"
-        checked={local.weeklyReport}
-        onChange={(v) => update("weeklyReport", v)}
-      />
-      <SaveButton saving={saving} saved={saved} onClick={save} />
-    </>
-  );
-}
-
-// ── AI persona panel ──────────────────────────────────────────────────────────
-const PERSONAS: { value: Prefs["aiPersona"]; label: string; desc: string; emoji: string }[] = [
-  { value: "friendly",        label: "Friendly",         desc: "Supportive and encouraging — great for beginners", emoji: "😊" },
-  { value: "critical",        label: "Critical",         desc: "Challenges your arguments and pushes for depth",    emoji: "🎯" },
-  { value: "devils-advocate", label: "Devil's advocate", desc: "Always takes the opposing view to sharpen your thinking", emoji: "😈" },
-  { value: "neutral",         label: "Neutral",          desc: "Balanced facilitator — no bias, just good questions", emoji: "⚖️" },
-];
-
-function PersonaPanel({ prefs }: { prefs: Prefs }) {
-  const [selected, setSelected] = useState<Prefs["aiPersona"]>(prefs.aiPersona);
-  const [saving,   setSaving]   = useState(false);
-  const [saved,    setSaved]    = useState(false);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await auth.updatePreferences({ aiPersona: selected });
-      setSaved(true);
-      toast.success("AI persona updated.");
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err: unknown) {
-      toast.error((err as Error).message ?? "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="grid sm:grid-cols-2 gap-2">
-        {PERSONAS.map((p) => (
-          <button
-            key={p.value}
-            type="button"
-            onClick={() => setSelected(p.value)}
-            className={`text-left rounded-xl p-3 border transition-all ${
-              selected === p.value
-                ? "border-foreground/40 bg-muted"
-                : "border-border/50 bg-background hover:border-foreground/20"
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-lg">{p.emoji}</span>
-              <span className="font-medium text-sm">{p.label}</span>
-              {selected === p.value && (
-                <Check className="h-3.5 w-3.5 text-primary ml-auto" />
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground leading-snug">{p.desc}</p>
-          </button>
-        ))}
-      </div>
-      <SaveButton saving={saving} saved={saved} onClick={save} />
-    </>
-  );
-}
-
-// ── Account panel ─────────────────────────────────────────────────────────────
-function AccountPanel({ user }: { user: User | null }) {
-  const nameRef        = useRef<HTMLInputElement>(null);
-  const currPassRef    = useRef<HTMLInputElement>(null);
-  const newPassRef     = useRef<HTMLInputElement>(null);
-  const confirmPassRef = useRef<HTMLInputElement>(null);
-
-  const [showCurr,    setShowCurr]    = useState(false);
-  const [showNew,     setShowNew]     = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [saving,      setSaving]      = useState(false);
-  const [saved,       setSaved]       = useState(false);
-  const [error,       setError]       = useState("");
-
-  const save = async () => {
-    setError("");
-    const name        = nameRef.current?.value.trim()  ?? "";
-    const currPass    = currPassRef.current?.value      ?? "";
-    const newPass     = newPassRef.current?.value       ?? "";
-    const confirmPass = confirmPassRef.current?.value   ?? "";
-
-    if (!name) { setError("Name cannot be empty."); return; }
-
-    if (newPass) {
-      if (newPass.length < 6) { setError("New password must be at least 6 characters."); return; }
-      if (newPass !== confirmPass) { setError("Passwords do not match."); return; }
-      if (!currPass) { setError("Enter your current password to change it."); return; }
-    }
-
-    setSaving(true);
-    try {
-      const payload: { name?: string; currentPassword?: string; newPassword?: string } = {};
-      if (name !== user?.name) payload.name = name;
-      if (newPass) { payload.currentPassword = currPass; payload.newPassword = newPass; }
-
-      if (Object.keys(payload).length === 0) {
-        toast.info("No changes to save.");
-        setSaving(false);
-        return;
-      }
-
-      await auth.updateProfile(payload);
-      setSaved(true);
-      toast.success("Account updated successfully.");
-      setTimeout(() => setSaved(false), 3000);
-
-      // Clear password fields
-      if (currPassRef.current)    currPassRef.current.value    = "";
-      if (newPassRef.current)     newPassRef.current.value     = "";
-      if (confirmPassRef.current) confirmPassRef.current.value = "";
-    } catch (err: unknown) {
-      setError((err as Error).message ?? "Failed to update account.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      {/* Name */}
-      <div>
-        <label className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5 block">
-          Display name
-        </label>
-        <input
-          ref={nameRef}
-          type="text"
-          defaultValue={user?.name ?? ""}
-          maxLength={100}
-          className="w-full rounded-xl bg-background/40 border border-border/60 px-4 py-2.5 text-sm focus:outline-none focus:border-primary/60 transition"
-          placeholder="Your name"
-        />
-      </div>
-
-      {/* Email (read-only) */}
-      <div>
-        <label className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5 block">
-          Email address
-        </label>
-        <input
-          type="email"
-          value={user?.email ?? ""}
-          readOnly
-          className="w-full rounded-xl bg-background/20 border border-border/40 px-4 py-2.5 text-sm text-muted-foreground cursor-not-allowed"
-        />
-        <p className="text-[11px] text-muted-foreground mt-1">Email cannot be changed.</p>
-      </div>
-
-      {/* Change password */}
-      <div className="pt-2 border-t border-border/30">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Change password</p>
-        <div className="space-y-3">
-          <PasswordField ref={currPassRef}    label="Current password"        show={showCurr}    onToggle={() => setShowCurr(v => !v)} />
-          <PasswordField ref={newPassRef}     label="New password (min 6 chars)" show={showNew}     onToggle={() => setShowNew(v => !v)} />
-          <PasswordField ref={confirmPassRef} label="Confirm new password"       show={showConfirm} onToggle={() => setShowConfirm(v => !v)} />
-        </div>
-      </div>
-
-      {error && (
-        <div className="flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          {error}
-        </div>
-      )}
-
-      <SaveButton saving={saving} saved={saved} onClick={save} label="Save account" />
-    </>
-  );
-}
-
-// ── Shared sub-components ─────────────────────────────────────────────────────
-
-function ToggleRow({ label, desc, checked, onChange }: {
-  label:    string;
-  desc:     string;
-  checked:  boolean;
-  onChange: (v: boolean) => void;
+/* ── Pref row ─────────────────────────────────────────────────────────────── */
+function PrefRow({ label, desc, checked, onChange }: {
+  label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <div className="text-sm font-medium">{label}</div>
-        <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
+    <div className="flex items-center justify-between gap-6 py-1">
+      <div className="flex-1 min-w-0">
+        <div className="text-sm" style={{ color: "var(--ib-fg)", fontFamily: "'DM Sans',sans-serif", fontWeight: 400 }}>{label}</div>
+        {desc && (
+          <div className="text-xs mt-0.5" style={{ color: "var(--ib-muted)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>{desc}</div>
+        )}
       </div>
       <Toggle checked={checked} onChange={onChange} />
     </div>
   );
 }
 
-import { forwardRef } from "react";
+/* ── Main ────────────────────────────────────────────────────────────────── */
+function ProfilePage() {
+  const { user } = useCurrentUser();
+  const [prefs,    setPrefs]    = useState<Prefs>(DEFAULT_PREFS);
+  const [saving,   setSaving]   = useState(false);
+  const [sections, setSections] = useState({ audio: true, notif: false, persona: false, account: false });
+  const [showPass, setShowPass] = useState(false);
+  const [pwError,  setPwError]  = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const nameRef    = useRef<HTMLInputElement>(null);
+  const curPassRef = useRef<HTMLInputElement>(null);
+  const newPassRef = useRef<HTMLInputElement>(null);
 
-const PasswordField = forwardRef<HTMLInputElement, {
-  label:    string;
-  show:     boolean;
-  onToggle: () => void;
-}>(({ label, show, onToggle }, ref) => (
-  <div>
-    <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
-    <div className="relative">
-      <input
-        ref={ref}
-        type={show ? "text" : "password"}
-        className="w-full rounded-xl bg-background/40 border border-border/60 px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-primary/60 transition"
-        placeholder="••••••••"
-        autoComplete="off"
-      />
-      <button
-        type="button"
-        onClick={onToggle}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
-        aria-label={show ? "Hide password" : "Show password"}
-      >
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
-    </div>
-  </div>
-));
-PasswordField.displayName = "PasswordField";
+  const toggleSection = (k: keyof typeof sections) =>
+    setSections((s) => ({ ...s, [k]: !s[k] }));
 
-function SaveButton({ saving, saved, onClick, label = "Save changes" }: {
-  saving:  boolean;
-  saved:   boolean;
-  onClick: () => void;
-  label?:  string;
-}) {
+  const savePref = (key: keyof Prefs, val: boolean | string) =>
+    setPrefs((p) => ({ ...p, [key]: val }));
+
+  const savePrefs = async () => {
+    setSaving(true);
+    try {
+      await auth.updatePreferences(prefs);
+      toast.success("Preferences saved.");
+    } catch {
+      toast.error("Failed to save preferences.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const savePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError("");
+    const cur = curPassRef.current?.value ?? "";
+    const nw  = newPassRef.current?.value ?? "";
+    if (!cur || !nw) { setPwError("Please fill in both fields."); return; }
+    if (nw.length < 6) { setPwError("New password must be at least 6 characters."); return; }
+    setPwSaving(true);
+    try {
+      await auth.updateProfile({ currentPassword: cur, newPassword: nw });
+      toast.success("Password updated.");
+      if (curPassRef.current) curPassRef.current.value = "";
+      if (newPassRef.current) newPassRef.current.value = "";
+    } catch (err: unknown) {
+      setPwError(err instanceof Error ? err.message : "Failed to update password.");
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  const personas = [
+    { id: "friendly",     label: "Friendly",     emoji: "😊", desc: "Warm and encouraging" },
+    { id: "strict",       label: "Strict",       emoji: "🎯", desc: "Direct and demanding" },
+    { id: "professional", label: "Professional", emoji: "💼", desc: "Formal and precise" },
+    { id: "socratic",     label: "Socratic",     emoji: "🤔", desc: "Questions and challenges" },
+  ];
+
+  const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={saving}
-      className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-80 disabled:opacity-50 transition"
+    <div
+      className="min-h-full py-8 animate-fade-in"
+      style={{ background: "var(--ib-bg)" }}
     >
-      {saving
-        ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-        : saved
-        ? <><Check className="h-4 w-4" /> Saved!</>
-        : <><Save className="h-4 w-4" /> {label}</>
-      }
-    </button>
+      <div className="px-4 sm:px-8 max-w-3xl mx-auto">
+
+        {/* Page header */}
+        <header className="mb-8">
+          <div style={{
+            fontFamily: "'JetBrains Mono',monospace",
+            fontSize: "0.55rem",
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            color: "var(--ib-amber)",
+            marginBottom: "0.5rem",
+          }}>
+            Settings
+          </div>
+          <h1 className="font-display text-5xl" style={{ color: "var(--ib-fg)" }}>
+            Your <span className="gradient-text">Profile</span>
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>
+            Manage your account and preferences.
+          </p>
+        </header>
+
+        {/* User identity card */}
+        <div
+          className="p-5 mb-6 flex items-center gap-4"
+          style={{
+            background: "var(--ib-card)",
+            border: "1px solid var(--ib-bdr)",
+            borderLeft: "3px solid var(--ib-amber)",
+          }}
+        >
+          <div
+            className="h-14 w-14 flex items-center justify-center text-xl font-bold shrink-0"
+            style={{
+              background: "var(--ib-card2)",
+              border: "1px solid var(--ib-amber)",
+              color: "var(--ib-amber)",
+              fontFamily: "'JetBrains Mono',monospace",
+              clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+            }}
+          >
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display text-2xl" style={{ color: "var(--ib-fg)" }}>
+              {user?.name ?? "Loading…"}
+            </div>
+            <div style={{
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: "0.6rem",
+              letterSpacing: "0.1em",
+              color: "var(--ib-muted)",
+              marginTop: "2px",
+            }}>
+              {user?.email ?? ""}
+            </div>
+          </div>
+          <span className="ib-chip shrink-0">{user?.plan === "pro" ? "PRO" : "FREE"}</span>
+        </div>
+
+        {/* Sections */}
+        <div className="space-y-3">
+
+          {/* Audio */}
+          <Section
+            icon={Mic2} label="Audio Settings" desc="Microphone and noise controls"
+            accentColor="var(--ib-amber)" open={sections.audio} onToggle={() => toggleSection("audio")}
+          >
+            <PrefRow label="Enable microphone"  desc="Allow mic access for sessions" checked={prefs.micEnabled}       onChange={(v) => savePref("micEnabled", v)} />
+            <PrefRow label="Noise suppression"  desc="Filter background noise"       checked={prefs.noiseSuppression} onChange={(v) => savePref("noiseSuppression", v)} />
+            <PrefRow label="Echo cancellation"  desc="Reduce audio echo"             checked={prefs.echoCancellation} onChange={(v) => savePref("echoCancellation", v)} />
+            <div className="pt-2">
+              <button onClick={savePrefs} disabled={saving} className="btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.65rem" }}>
+                {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : <><Save className="h-3.5 w-3.5" /> Save</>}
+              </button>
+            </div>
+          </Section>
+
+          {/* Notifications */}
+          <Section
+            icon={Bell} label="Notifications" desc="Email and reminder preferences"
+            accentColor="var(--ib-purple)" open={sections.notif} onToggle={() => toggleSection("notif")}
+          >
+            <PrefRow label="Practice reminders" desc="Daily nudges to keep your streak" checked={prefs.practiceReminders} onChange={(v) => savePref("practiceReminders", v)} />
+            <PrefRow label="Session summary"    desc="Email after each session"         checked={prefs.sessionSummary}    onChange={(v) => savePref("sessionSummary", v)} />
+            <PrefRow label="Weekly report"      desc="Weekly progress digest"           checked={prefs.weeklyReport}      onChange={(v) => savePref("weeklyReport", v)} />
+            <div className="pt-2">
+              <button onClick={savePrefs} disabled={saving} className="btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.65rem" }}>
+                {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : <><Save className="h-3.5 w-3.5" /> Save</>}
+              </button>
+            </div>
+          </Section>
+
+          {/* AI Persona */}
+          <Section
+            icon={Sparkles} label="AI Persona" desc="Choose your AI coach's style"
+            accentColor="var(--ib-gold)" open={sections.persona} onToggle={() => toggleSection("persona")}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              {personas.map((p) => {
+                const active = prefs.aiPersona === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => savePref("aiPersona", p.id)}
+                    className="p-4 text-left transition-all"
+                    style={{
+                      background: active ? "var(--ib-card2)" : "var(--ib-bg)",
+                      border: `1px solid ${active ? "var(--ib-amber)" : "var(--ib-bdr)"}`,
+                    }}
+                  >
+                    <div className="text-2xl mb-2">{p.emoji}</div>
+                    <div className="font-display text-sm" style={{ color: "var(--ib-fg)" }}>{p.label}</div>
+                    <div className="text-xs mt-0.5" style={{ color: "var(--ib-muted)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>{p.desc}</div>
+                    {active && (
+                      <div className="mt-2 flex items-center gap-1" style={{ color: "var(--ib-amber)" }}>
+                        <Check className="h-3 w-3" />
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>Selected</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="pt-2">
+              <button onClick={savePrefs} disabled={saving} className="btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.65rem" }}>
+                {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : <><Save className="h-3.5 w-3.5" /> Save</>}
+              </button>
+            </div>
+          </Section>
+
+          {/* Account */}
+          <Section
+            icon={Settings} label="Account" desc="Name and password settings"
+            accentColor="var(--ib-mut2)" open={sections.account} onToggle={() => toggleSection("account")}
+          >
+            <div className="space-y-5">
+
+              {/* Display name */}
+              <div>
+                <label style={{
+                  fontFamily: "'JetBrains Mono',monospace",
+                  fontSize: "0.55rem",
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  color: "var(--ib-muted)",
+                  display: "block",
+                  marginBottom: "0.5rem",
+                }}>
+                  Display name
+                </label>
+                <input ref={nameRef} type="text" defaultValue={user?.name ?? ""} className="ib-input" />
+              </div>
+
+              <div className="divider" />
+
+              {/* Change password */}
+              <form onSubmit={savePassword} className="space-y-3">
+                <div style={{
+                  fontFamily: "'JetBrains Mono',monospace",
+                  fontSize: "0.55rem",
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  color: "var(--ib-muted)",
+                }}>
+                  Change password
+                </div>
+
+                {pwError && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-2 text-xs"
+                    style={{ background: "var(--ib-card2)", border: "1px solid var(--ib-terra)", color: "var(--ib-terra)" }}
+                  >
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {pwError}
+                  </div>
+                )}
+
+                <div className="relative">
+                  <input
+                    ref={curPassRef}
+                    type={showPass ? "text" : "password"}
+                    placeholder="Current password"
+                    className="ib-input pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    style={{ color: "var(--ib-muted)" }}
+                  >
+                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                <input ref={newPassRef} type="password" placeholder="New password (min 6 chars)" className="ib-input" />
+
+                <button type="submit" disabled={pwSaving} className="btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.65rem" }}>
+                  {pwSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating…</> : "Update password"}
+                </button>
+              </form>
+
+              <div className="divider" />
+
+              <button
+                onClick={() => auth.logout()}
+                className="btn-terra inline-flex items-center gap-2"
+                style={{ padding: "0.5rem 1.25rem", fontSize: "0.65rem" }}
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign out
+              </button>
+            </div>
+          </Section>
+
+        </div>
+      </div>
+    </div>
   );
 }

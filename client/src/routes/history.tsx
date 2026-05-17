@@ -7,7 +7,7 @@ import { usePageFocus } from "@/hooks/usePageFocus";
 export const Route = createFileRoute("/history")({
   head: () => ({
     meta: [
-      { title: "Session History — GD Bot" },
+      { title: "Session History — INTELLI BOT" },
       { name: "description", content: "Browse all your past group discussion sessions on a timeline." },
     ],
   }),
@@ -30,123 +30,154 @@ function HistoryPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  // Refetch when the tab regains focus (user returns after a session)
   usePageFocus(load);
 
   return (
-    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto animate-fade-in">
+    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto animate-fade-in" style={{ background: "var(--ib-bg)" }}>
       <header className="mb-8">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">Archive</p>
-        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">Session <span className="gradient-text">timeline</span></h1>
-        <p className="mt-2 text-sm text-muted-foreground">Every discussion, every score, in order.</p>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--ib-amber)", marginBottom: "0.5rem" }}>
+          Archive
+        </div>
+        <h1 className="font-display text-4xl" style={{ color: "var(--ib-fg)" }}>
+          Session <span className="gradient-text">Timeline</span>
+        </h1>
+        <p className="mt-2 text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>
+          Every discussion, every score, in order.
+        </p>
       </header>
 
       {loading && (
-        <div className="flex items-center justify-center py-20 text-muted-foreground gap-3">
+        <div className="flex items-center justify-center py-20 gap-3" style={{ color: "var(--ib-mut2)" }}>
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Loading your sessions…</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", letterSpacing: "0.1em" }}>Loading your sessions…</span>
         </div>
       )}
 
       {!loading && error && (
-        <div className="rounded-2xl border border-border/50 bg-card p-8 text-center text-destructive text-sm">
+        <div className="p-8 text-center text-sm" style={{ background: "var(--ib-card)", border: "1px solid rgba(220,138,107,0.3)", color: "var(--ib-terra)" }}>
           {error}
         </div>
       )}
 
       {!loading && !error && sessions.length === 0 && (
-        <div className="rounded-2xl border border-border/50 bg-card p-12 text-center">
-          <Inbox className="h-10 w-10 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground text-sm">No sessions yet — complete a discussion to see it here.</p>
+        <div className="p-12 text-center" style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)" }}>
+          <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: "var(--ib-muted)" }} />
+          <p className="text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif" }}>
+            No sessions yet — complete a discussion to see it here.
+          </p>
         </div>
       )}
 
       {!loading && !error && sessions.length > 0 && (
         <div className="relative">
-          {/* spine */}
-          <div className="absolute left-4 sm:left-6 top-2 bottom-2 w-px bg-gradient-to-b from-foreground/30 via-foreground/10 to-transparent" />
+          {/* Timeline spine */}
+          <div
+            className="absolute left-4 sm:left-6 top-2 bottom-2 w-px"
+            style={{ background: "linear-gradient(to bottom, var(--ib-amber), var(--ib-bdr), transparent)" }}
+          />
 
           <ul className="space-y-5">
             {sessions.map((s, i) => (
               <li
                 key={s.sessionId}
                 className="relative pl-12 sm:pl-16 animate-fade-up"
-                style={{ animationDelay: `${i * 90}ms` }}
+                style={{ animationDelay: `${i * 70}ms` }}
               >
-                {/* node */}
-                <span className="absolute left-2.5 sm:left-4.5 top-6 h-3 w-3 rounded-full bg-primary ring-4 ring-background" />
+                {/* Timeline node */}
+                <span
+                  className="absolute left-2.5 sm:left-4.5 top-6 h-3 w-3"
+                  style={{ background: "var(--ib-amber)", border: "2px solid var(--ib-bg)" }}
+                />
 
-                <div className="rounded-2xl border border-border/50 bg-card p-5 hover:border-foreground/20 hover:shadow-glow transition-all">
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5">
+                <div
+                  className="ib-card p-5"
+                  style={{ borderLeft: "3px solid var(--ib-amber)" }}
+                >
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    <span className="ib-label inline-flex items-center gap-1.5">
                       <Calendar className="h-3 w-3" />
                       {new Date(s.date).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
                     </span>
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="ib-label inline-flex items-center gap-1.5">
                       <Clock className="h-3 w-3" /> {s.durationFormatted}
                     </span>
                     {s.myReport && (
-                      <span className="inline-flex items-center gap-1.5">
+                      <span className="ib-label inline-flex items-center gap-1.5">
                         <MessageCircle className="h-3 w-3" /> {s.myReport.turns} turns
                       </span>
                     )}
-                    <span className="capitalize text-xs px-2 py-0.5 rounded-full bg-background/40 border border-border/50">
-                      {s.type}
-                    </span>
+                    <span className="ib-chip">{s.type}</span>
                   </div>
 
-                  <h3 className="mt-3 text-lg font-medium leading-snug">{s.topic}</h3>
+                  <h3 className="text-base font-medium leading-snug mb-4" style={{ color: "var(--ib-fg)", fontFamily: "'DM Sans',sans-serif" }}>
+                    {s.topic}
+                  </h3>
 
-                  {s.myReport ? (
-                    <div className="mt-5 space-y-3">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <Stat label="Overall"    value={s.myReport.combinedScore ?? s.myReport.overallScore} highlight />
-                        <Stat label="Fluency"    value={s.myReport.fluency} />
-                        <Stat label="Relevance"  value={s.myReport.relevance} />
-                        <Stat label="Confidence" value={s.myReport.confidence} />
+                  {s.myReport && (
+                    <div className="flex items-end justify-between mb-4">
+                      <div>
+                        <div className="font-display text-3xl gradient-text">
+                          {s.myReport.overallScore.toFixed(1)}
+                        </div>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+                          Overall
+                        </div>
                       </div>
-                      {/* Peer + combined scores */}
-                      {(s.myReport.peerScore != null || s.myReport.combinedScore != null) && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {s.myReport.peerScore != null && (
-                            <Stat label="Peer score" value={s.myReport.peerScore} color="cyan" />
-                          )}
-                          {s.myReport.combinedScore != null && (
-                            <Stat label="Combined" value={s.myReport.combinedScore} color="success" />
-                          )}
+                      {/* Mini bar chart */}
+                      <div className="flex gap-0.5 items-end h-8">
+                        {Array.from({ length: 10 }).map((_, idx) => (
+                          <span
+                            key={idx}
+                            className="w-1.5"
+                            style={{
+                              height: `${(idx + 1) * 10}%`,
+                              background: idx < Math.round(s.myReport!.overallScore) ? "var(--ib-amber)" : "var(--ib-bdr)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Peer scores */}
+                  {s.myReport && (s.myReport.peerScore != null || s.myReport.combinedScore != null) && (
+                    <div className="flex flex-wrap gap-3 mb-4">
+                      {s.myReport.peerScore != null && (
+                        <div className="text-center">
+                          <div className="font-display text-lg" style={{ color: "var(--ib-purple)" }}>{s.myReport.peerScore.toFixed(1)}</div>
+                          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>Peer</div>
                         </div>
                       )}
-                      {/* Peer feedback text */}
-                      {s.myReport.peerFeedback && (
-                        <div className="rounded-xl bg-background/30 border border-border/40 px-4 py-3">
-                          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5">
-                            <Users className="h-3 w-3" /> Peer feedback
-                          </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                            {s.myReport.peerFeedback}
-                          </p>
+                      {s.myReport.combinedScore != null && (
+                        <div className="text-center">
+                          <div className="font-display text-lg gradient-text">{s.myReport.combinedScore.toFixed(1)}</div>
+                          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>Combined</div>
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <p className="mt-3 text-xs text-muted-foreground italic">No report data for this session.</p>
                   )}
 
-                  <div className="mt-5 flex items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Link
                       to="/report/$sessionId"
                       params={{ sessionId: s.sessionId }}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-80 transition"
+                      className="btn-primary"
+                      style={{ padding: "0.4rem 1rem", fontSize: "0.6rem" }}
                     >
                       View report
                     </Link>
                     <button
-                      className="inline-flex items-center gap-2 rounded-lg glass px-4 py-2 text-sm hover:shadow-glow transition opacity-50 cursor-not-allowed"
-                      disabled
-                      title="PDF export coming soon"
+                      className="btn-ghost"
+                      style={{ padding: "0.4rem 1rem", fontSize: "0.6rem" }}
+                      onClick={() => {
+                        const style = document.createElement("style");
+                        style.textContent = `@media print { nav, aside, button { display: none !important; } }`;
+                        document.head.appendChild(style);
+                        window.print();
+                        setTimeout(() => style.remove(), 1000);
+                      }}
                     >
-                      <Download className="h-3.5 w-3.5" /> PDF
+                      <Download className="h-3 w-3" /> PDF
                     </button>
                   </div>
                 </div>
@@ -155,21 +186,6 @@ function HistoryPage() {
           </ul>
         </div>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value, highlight, color }: { label: string; value: number; highlight?: boolean; color?: "cyan" | "success" }) {
-  const bgClass = highlight
-    ? "bg-foreground/8 border border-foreground/20"
-    : "bg-muted/40 border border-border/50";
-
-  const textClass = highlight ? "gradient-text" : "";
-
-  return (
-    <div className={`rounded-xl px-3 py-2 ${bgClass}`}>
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className={`mt-0.5 font-display text-xl font-bold ${textClass}`}>{value.toFixed(1)}</div>
     </div>
   );
 }

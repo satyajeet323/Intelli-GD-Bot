@@ -3,12 +3,12 @@ import { LayoutDashboard, MessagesSquare, History, User, Mic, LogOut, Users, Shi
 import { auth } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { getAdminToken } from "@/lib/adminApi";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -33,17 +33,12 @@ const items: NavItem[] = [
   { title: "Profile",         url: "/profile",       icon: User },
 ];
 
-/**
- * Decode a JWT payload without verifying the signature (client-side only).
- * Returns null if the token is missing, malformed, or expired.
- */
 function decodeJwtPayload(token: string | null): Record<string, unknown> | null {
   if (!token) return null;
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
     const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    // Check expiry
     if (payload.exp && payload.exp * 1000 < Date.now()) return null;
     return payload as Record<string, unknown>;
   } catch {
@@ -57,45 +52,64 @@ export function AppSidebar() {
   const pathname  = useRouterState({ select: (r) => r.location.pathname });
   const { user }  = useCurrentUser();
 
+  const [adminToken, setAdminToken] = useState<string | null>(() => getAdminToken());
+
+  useEffect(() => {
+    const sync = () => setAdminToken(getAdminToken());
+    window.addEventListener("adminTokenChange", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("adminTokenChange", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
   const initials  = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
-  const planLabel = user?.plan === "pro" ? "Pro" : "Free";
+  const planLabel = user?.plan === "pro" ? "PRO" : "FREE";
 
-  // Show "Admin Panel" only when:
-  //  1. There is a valid (non-expired) admin JWT in localStorage, AND
-  //  2. The email in that admin JWT matches the currently logged-in user's email.
-  // This prevents the button from leaking to other users who share the same browser.
-  const adminPayload = decodeJwtPayload(getAdminToken());
+  const adminPayload = decodeJwtPayload(adminToken);
   const hasAdmin =
     !!adminPayload &&
     !!user?.email &&
     (adminPayload.email as string)?.toLowerCase() === user.email.toLowerCase();
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      {/* Logo */}
-      <SidebarHeader className="p-4">
-        <Link to="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
-            <Mic className="h-4.5 w-4.5 text-primary-foreground" />
+    <Sidebar
+      collapsible="icon"
+      style={{ background: "var(--ib-surf)", borderRight: "1px solid var(--ib-bdr)" }}
+    >
+      <SidebarHeader className="p-4" style={{ borderBottom: "1px solid var(--ib-bdr)" }}>
+        <Link to="/dashboard" className="flex items-center gap-2.5">
+          <div
+            className="h-9 w-9 flex items-center justify-center shrink-0"
+            style={{
+              background: "var(--ib-amber)",
+              clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+            }}
+          >
+            <Mic className="h-4 w-4" style={{ color: "#0c0b09" }} />
           </div>
           {!collapsed && (
             <div className="flex flex-col leading-tight">
-              <span className="font-display font-bold text-base tracking-tight">GD Bot</span>
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">AI Discussion</span>
+              <span className="font-display text-base" style={{ color: "var(--ib-fg)", letterSpacing: "0.1em" }}>
+                INTELLI<span style={{ color: "var(--ib-amber)" }}>BOT</span>
+              </span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+                AI Discussion
+              </span>
             </div>
           )}
         </Link>
       </SidebarHeader>
 
-      {/* Nav */}
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 py-3">
         <SidebarGroup>
           {!collapsed && (
-            <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground px-2 mb-1">
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)", padding: "0 0.5rem", marginBottom: "0.5rem" }}>
               Navigation
-            </SidebarGroupLabel>
+            </div>
           )}
           <SidebarGroupContent>
             <SidebarMenu>
@@ -109,15 +123,21 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={active}
-                      className="h-10 rounded-lg data-[active=true]:bg-primary data-[active=true]:text-primary-foreground hover:bg-sidebar-accent transition-colors"
+                      className="h-9 transition-colors"
+                      style={{
+                        background: active ? "rgba(245,158,11,0.1)" : "transparent",
+                        borderLeft: active ? "2px solid var(--ib-amber)" : "2px solid transparent",
+                        borderRadius: 0,
+                        color: active ? "var(--ib-amber)" : "var(--ib-mut2)",
+                      }}
                     >
-                      <Link
-                        to={item.url as never}
-                        params={item.params as never}
-                        className="flex items-center gap-3"
-                      >
+                      <Link to={item.url as never} params={item.params as never} className="flex items-center gap-3 px-3">
                         <item.icon className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span className="font-medium text-sm">{item.title}</span>}
+                        {!collapsed && (
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                            {item.title}
+                          </span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -128,37 +148,52 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer */}
-      <SidebarFooter className="p-3">
+      <SidebarFooter className="p-3" style={{ borderTop: "1px solid var(--ib-bdr)" }}>
         {collapsed ? (
           <button
             onClick={() => auth.logout()}
-            className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-sidebar-accent transition-colors mx-auto"
+            className="h-9 w-9 flex items-center justify-center mx-auto"
+            style={{ color: "var(--ib-muted)" }}
             aria-label="Sign out"
           >
-            <LogOut className="h-4 w-4 text-muted-foreground" />
+            <LogOut className="h-4 w-4" />
           </button>
         ) : (
-          <div className="rounded-xl border border-border/50 bg-muted/30 p-3 space-y-3">
+          <div className="p-3 space-y-3" style={{ border: "1px solid var(--ib-bdr)", background: "var(--ib-card)" }}>
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground select-none shrink-0">
+              <div
+                className="h-8 w-8 flex items-center justify-center text-xs font-bold shrink-0"
+                style={{
+                  background: "rgba(245,158,11,0.12)",
+                  border: "1px solid rgba(245,158,11,0.3)",
+                  color: "var(--ib-amber)",
+                  fontFamily: "'JetBrains Mono',monospace",
+                  clipPath: "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%)",
+                }}
+              >
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{user?.name ?? "Loading…"}</div>
-                <div className="text-[11px] text-muted-foreground">{planLabel} plan</div>
+                <div className="text-sm truncate" style={{ color: "var(--ib-fg)", fontWeight: 400 }}>
+                  {user?.name ?? "Loading…"}
+                </div>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", background: "rgba(245,158,11,0.12)", color: "var(--ib-amber)", border: "1px solid rgba(245,158,11,0.3)", padding: "0.15rem 0.4rem", display: "inline-block", marginTop: "2px" }}>
+                  {planLabel}
+                </span>
               </div>
             </div>
             <button
               onClick={() => auth.logout()}
-              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+              className="flex items-center gap-2 w-full"
+              style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ib-muted)" }}
             >
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
             {hasAdmin && (
               <a
                 href="/admin/dashboard"
-                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+                className="flex items-center gap-2 w-full"
+                style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ib-purple)" }}
               >
                 <Shield className="h-3.5 w-3.5" /> Admin Panel
               </a>

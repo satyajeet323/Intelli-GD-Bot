@@ -15,7 +15,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 export const Route = createFileRoute("/group-session_/$sessionId")({
   head: () => ({
     meta: [
-      { title: "Group Session — GD Bot" },
+      { title: "Group Session — INTELLI BOT" },
       { name: "description", content: "Live group discussion session." },
     ],
   }),

@@ -1,9 +1,9 @@
-﻿# GD Bot — Group Discussion Practice Platform
+﻿# INTELLI BOT — Group Discussion Practice Platform
 ## Final Year IT Project Report
 
 ---
 
-**Project Title:** GD Bot — AI-Powered Group Discussion Practice and Evaluation Platform  
+**Project Title:** INTELLI BOT — AI-Powered Group Discussion Practice and Evaluation Platform  
 **Technology Stack:** React 18, TypeScript, Node.js, Express, MongoDB, Socket.IO, WebRTC, Google Gemini AI  
 **Academic Year:** 2025–2026  
 
@@ -61,7 +61,7 @@
 
 ## 1. Abstract
 
-GD Bot is a full-stack, AI-powered web application designed to help students and professionals practise and improve their group discussion (GD) skills in a structured, technology-driven environment. The platform addresses a well-documented gap in traditional communication training: the absence of an accessible, scalable, and data-driven tool that can simulate real group discussion scenarios, evaluate individual performance objectively, and provide actionable feedback in real time.
+INTELLI BOT is a full-stack, AI-powered web application designed to help students and professionals practise and improve their group discussion (GD) skills in a structured, technology-driven environment. The platform addresses a well-documented gap in traditional communication training: the absence of an accessible, scalable, and data-driven tool that can simulate real group discussion scenarios, evaluate individual performance objectively, and provide actionable feedback in real time.
 
 The system offers two primary modes of practice. In the **Individual AI Session** mode, a single user engages in a simulated group discussion with an AI partner powered by Google Gemini. The AI generates contextually relevant discussion topics, responds intelligently to the user's arguments, and evaluates each speaking turn across four dimensions: fluency, relevance, confidence, and filler-word usage. In the **Group Discussion Session** mode, multiple authenticated users join a shared virtual room where they can see and hear each other through WebRTC-based peer-to-peer video and audio streaming, exchange text messages via a real-time chat system, and receive post-session peer evaluations.
 
@@ -77,7 +77,7 @@ Key outcomes of the project include: a fully functional multi-user video confere
 
 Group discussions are a critical component of academic and professional evaluation processes. Universities use GDs to assess candidates for postgraduate admissions; corporations use them during campus recruitment drives; and competitive examinations such as the Common Admission Test (CAT) and the Graduate Management Admission Test (GMAT) include GD rounds as part of their selection process. Despite their importance, most students and early-career professionals have very limited opportunities to practise GDs in a structured, feedback-rich environment.
 
-GD Bot was conceived to fill this gap. It is a web-based platform that provides two complementary practice environments:
+INTELLI BOT was conceived to fill this gap. It is a web-based platform that provides two complementary practice environments:
 
 1. **AI-Powered Individual Sessions:** The user practises alone against an AI discussion partner. The AI generates a topic, responds to the user's arguments, and scores each turn in real time. This mode is ideal for building confidence and vocabulary before participating in group settings.
 
@@ -126,7 +126,7 @@ JSON Web Tokens (JWT) are used for stateless authentication. Upon login, the ser
 
 ### 2.3 Problem Description
 
-The following problems motivated the development of GD Bot:
+The following problems motivated the development of INTELLI BOT:
 
 1. **Lack of Accessible Practice Platforms:** Existing GD preparation resources are primarily text-based (books, articles) or require physical presence (coaching institutes). There is no widely available, free, browser-based tool for practising GDs with real-time feedback.
 
@@ -138,7 +138,7 @@ The following problems motivated the development of GD Bot:
 
 5. **No Progress Tracking:** Without historical data, users cannot measure improvement over time or identify persistent weaknesses.
 
-GD Bot addresses all five problems through its integrated AI evaluation, peer rating, session history, and dashboard modules.
+INTELLI BOT addresses all five problems through its integrated AI evaluation, peer rating, session history, and dashboard modules.
 
 ---
 
@@ -146,7 +146,7 @@ GD Bot addresses all five problems through its integrated AI evaluation, peer ra
 
 ### 3.1 Existing System
 
-Prior to the development of GD Bot, the following approaches were commonly used for GD preparation:
+Prior to the development of INTELLI BOT, the following approaches were commonly used for GD preparation:
 
 1. **Coaching Institutes:** Physical centres where students practise GDs under the supervision of a trainer. These are expensive, geographically limited, and available only at fixed times.
 
@@ -176,7 +176,7 @@ The fundamental limitation across all existing approaches is the absence of an i
 
 ### 3.3 Proposed System
 
-GD Bot is proposed as a comprehensive, browser-based platform that integrates all the features missing from existing solutions. The proposed system:
+INTELLI BOT is proposed as a comprehensive, browser-based platform that integrates all the features missing from existing solutions. The proposed system:
 
 - Provides **two practice modes**: individual AI sessions and multi-user group sessions.
 - Generates **AI-powered discussion topics** using Google Gemini with a local fallback for resilience.
@@ -295,7 +295,7 @@ Documentation & Report       |    |    |    |    |    |    |    |    |    |    |
 
 ```
                         ┌─────────────────────────────────────────────┐
-                        │                  GD Bot System               │
+                        │                  INTELLI BOT System               │
                         │                                               │
   ┌──────────┐          │  ┌─────────────────┐  ┌──────────────────┐  │
   │          │──────────┼─►│  Register/Login  │  │  Generate Topic  │  │
@@ -1610,7 +1610,7 @@ All 57 test cases passed. The automated signalling test suite (17 tests) runs in
 
 ## 9. Conclusion
 
-GD Bot successfully achieves all primary and secondary objectives defined at the outset of the project. The platform delivers a comprehensive, browser-based group discussion practice environment that combines AI-powered evaluation, real-time multi-user video conferencing, peer feedback, and historical progress tracking in a single, cohesive application.
+INTELLI BOT successfully achieves all primary and secondary objectives defined at the outset of the project. The platform delivers a comprehensive, browser-based group discussion practice environment that combines AI-powered evaluation, real-time multi-user video conferencing, peer feedback, and historical progress tracking in a single, cohesive application.
 
 ### Key Achievements
 
@@ -1664,7 +1664,7 @@ GD Bot successfully achieves all primary and secondary objectives defined at the
 
 ### Summary
 
-GD Bot demonstrates that modern web technologies — React, WebRTC, Socket.IO, MongoDB, and Google Gemini AI — can be combined to create a sophisticated, real-time collaborative application that addresses a genuine educational need. The project provided hands-on experience with full-stack development, real-time systems, AI integration, and the complexities of multi-user state management. The resulting system is production-ready, well-tested, and extensible for future development.
+INTELLI BOT demonstrates that modern web technologies — React, WebRTC, Socket.IO, MongoDB, and Google Gemini AI — can be combined to create a sophisticated, real-time collaborative application that addresses a genuine educational need. The project provided hands-on experience with full-stack development, real-time systems, AI integration, and the complexities of multi-user state management. The resulting system is production-ready, well-tested, and extensible for future development.
 
 ---
 
@@ -1720,7 +1720,7 @@ GD Bot demonstrates that modern web technologies — React, WebRTC, Socket.IO, M
 
 | Field | Value |
 |---|---|
-| Project Name | GD Bot — AI-Powered Group Discussion Practice Platform |
+| Project Name | INTELLI BOT — AI-Powered Group Discussion Practice Platform |
 | Report Version | 1.0 |
 | Date | May 2026 |
 | Technology Stack | React 18, TypeScript, Node.js, Express, MongoDB, Socket.IO, WebRTC, Google Gemini AI |

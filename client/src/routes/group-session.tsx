@@ -11,7 +11,7 @@ import { sessions, isAuthenticated } from "@/lib/api";
 export const Route = createFileRoute("/group-session")({
   head: () => ({
     meta: [
-      { title: "Group Session — GD Bot" },
+      { title: "Group Session — INTELLI BOT" },
       { name: "description", content: "Create or join a real-time group discussion session." },
     ],
   }),
@@ -22,42 +22,25 @@ type Modal = "create" | "join" | null;
 
 function GroupSessionLanding() {
   const navigate = useNavigate();
-  const [modal,       setModal]       = useState<Modal>(null);
-  const [sessionId,   setSessionId]   = useState<string>("");
-  const [creating,    setCreating]    = useState(false);
-  const [joinId,      setJoinId]      = useState("");
-  const [copied,      setCopied]      = useState(false);
-  const [joining,     setJoining]     = useState(false);
+  const [modal,     setModal]     = useState<Modal>(null);
+  const [sessionId, setSessionId] = useState<string>("");
+  const [creating,  setCreating]  = useState(false);
+  const [joinId,    setJoinId]    = useState("");
+  const [copied,    setCopied]    = useState(false);
+  const [joining,   setJoining]   = useState(false);
 
-  const {
-    topic: generatedTopic,
-    ready: topicReady,
-    error: topicError,
-    regenerate: regenerateTopic,
-  } = useAITopic();
+  const { topic: generatedTopic, ready: topicReady, error: topicError, regenerate: regenerateTopic } = useAITopic();
 
-  // Close modal on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setModal(null); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = modal ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [modal]);
-
-  const openCreate = () => {
-    setSessionId("");
-    setModal("create");
-  };
-
-  const openJoin = () => {
-    setJoinId("");
-    setModal("join");
-  };
 
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -73,44 +56,33 @@ function GroupSessionLanding() {
     if (!sessionId) return;
     const url = `${window.location.origin}/group-session/${sessionId}`;
     if (navigator.share) {
-      await navigator.share({ title: "Join my GD Bot Group Session", url });
+      await navigator.share({ title: "Join my INTELLI BOT Group Session", url });
     } else {
       await navigator.clipboard.writeText(url);
       toast.success("Invite link copied!");
     }
   };
 
-  /**
-   * Create a session via the API (requires auth).
-   * On success, navigate into the session room.
-   */
   const startSession = async () => {
     if (!isAuthenticated()) {
       toast.error("Please sign in to create a session.");
       navigate({ to: "/login" });
       return;
     }
-
     if (!topicReady || !generatedTopic) {
       toast.error("Topic is not ready yet. Please wait or try regenerating.");
       return;
     }
-
     setCreating(true);
     try {
       const res = await sessions.create({ type: "group", topic: generatedTopic });
       const newId = res.session.sessionId;
       setSessionId(newId);
-
-      if (res.session.topic) {
-        sessionStorage.setItem(`topic-${newId}`, res.session.topic);
-      }
-
+      if (res.session.topic) sessionStorage.setItem(`topic-${newId}`, res.session.topic);
       toast.success("Session created!");
       navigate({ to: "/group-session/$sessionId", params: { sessionId: newId } });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to create session.";
-      toast.error(msg);
+      toast.error(err instanceof Error ? err.message : "Failed to create session.");
     } finally {
       setCreating(false);
     }
@@ -119,16 +91,13 @@ function GroupSessionLanding() {
   const joinSession = async () => {
     const id = joinId.trim().toUpperCase();
     if (!id) { toast.error("Please enter a session ID"); return; }
-
     if (!isAuthenticated()) {
       toast.error("Please sign in to join a session.");
       navigate({ to: "/login" });
       return;
     }
-
     setJoining(true);
     try {
-      // Validate the session exists before navigating
       const check = await sessions.validate(id);
       if (!check.valid) {
         toast.error(`Session "${id}" not found. Check the ID and try again.`);
@@ -137,42 +106,39 @@ function GroupSessionLanding() {
       }
       navigate({ to: "/group-session/$sessionId", params: { sessionId: id } });
     } catch {
-      // If validation fails, still try to navigate — the room will handle the error
       navigate({ to: "/group-session/$sessionId", params: { sessionId: id } });
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem-2.75rem)] flex flex-col">
-      <div className="flex-1 px-4 sm:px-8 py-8 max-w-5xl mx-auto w-full space-y-8 animate-fade-in">
+    <div className="min-h-[calc(100vh-3.5rem-2.75rem)] flex flex-col animate-fade-in" style={{ background: "var(--ib-bg)" }}>
+      <div className="flex-1 px-4 sm:px-8 py-8 max-w-5xl mx-auto w-full space-y-8">
+
         {/* Hero */}
-        <section className="relative overflow-hidden rounded-3xl glass-strong p-8 sm:p-12 text-center">
-          <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full bg-primary/30 blur-3xl animate-float" />
-          <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-cyan/25 blur-3xl animate-float" style={{ animationDelay: "2s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-violet/10 blur-3xl animate-blob" />
+        <section
+          className="relative overflow-hidden scanlines p-8 sm:p-12 text-center"
+          style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)" }}
+        >
+          <div className="ib-grid-bg" />
+          <div className="ib-accent-line absolute left-0 top-0 bottom-0" />
+          <div className="ib-accent-line absolute right-0 top-0 bottom-0" style={{ opacity: 0.15 }} />
+
           <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs text-muted-foreground mb-6">
-              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-              Real-time collaboration
+            <div className="ib-chip inline-block mb-6">
+              <span style={{ color: "var(--ib-ok)" }}>●</span> Real-time collaboration
             </div>
-            <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight">
+            <h1 className="font-display text-4xl sm:text-5xl mb-4" style={{ color: "var(--ib-fg)" }}>
               Discuss together,{" "}
               <span className="gradient-text">grow together</span>
             </h1>
-            <p className="mt-4 text-muted-foreground max-w-lg mx-auto text-sm sm:text-base">
+            <p className="text-sm sm:text-base max-w-lg mx-auto mb-8" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>
               Host or join a live group discussion with real-time video, AI-powered insights, and instant performance feedback.
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button
-                onClick={openCreate}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-xl gradient-cosmic px-7 py-3.5 font-semibold text-white shadow-glow hover:opacity-90 hover:scale-[1.02] transition-all"
-              >
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button onClick={() => setModal("create")} className="btn-primary w-full sm:w-auto" style={{ padding: "0.875rem 2rem" }}>
                 <Plus className="h-5 w-5" /> Create a Meet
               </button>
-              <button
-                onClick={openJoin}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-xl glass border border-primary/30 px-7 py-3.5 font-semibold hover:shadow-glow hover:border-primary/60 hover:scale-[1.02] transition-all"
-              >
+              <button onClick={() => setModal("join")} className="btn-ghost w-full sm:w-auto" style={{ padding: "0.875rem 2rem" }}>
                 <LogIn className="h-5 w-5" /> Join a Meet
               </button>
             </div>
@@ -182,35 +148,19 @@ function GroupSessionLanding() {
         {/* Feature cards */}
         <section className="grid sm:grid-cols-3 gap-4">
           {[
-            {
-              icon: Users,
-              title: "Multi-participant",
-              desc: "Up to 12 participants in a single session with adaptive grid layout.",
-              tint: "from-primary/30 to-violet/20",
-            },
-            {
-              icon: Sparkles,
-              title: "AI Insights",
-              desc: "Real-time AI analysis of discussion quality, turn-taking, and argument strength.",
-              tint: "from-cyan/30 to-accent/20",
-            },
-            {
-              icon: Share2,
-              title: "Instant invite",
-              desc: "Share a session ID or link — participants join in one click.",
-              tint: "from-success/30 to-cyan/20",
-            },
+            { icon: Users,    title: "Multi-participant", desc: "Up to 12 participants in a single session with adaptive grid layout." },
+            { icon: Sparkles, title: "AI Insights",       desc: "Real-time AI analysis of discussion quality, turn-taking, and argument strength." },
+            { icon: Share2,   title: "Instant invite",    desc: "Share a session ID or link — participants join in one click." },
           ].map((f, i) => (
-            <div
-              key={f.title}
-              className="glass rounded-2xl p-6 hover:shadow-glow hover:-translate-y-0.5 transition-all animate-fade-up"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${f.tint} flex items-center justify-center mb-4`}>
-                <f.icon className="h-5 w-5" />
+            <div key={f.title} className="ib-card p-6 animate-fade-up" style={{ animationDelay: `${i * 80}ms` }}>
+              <div
+                className="h-10 w-10 flex items-center justify-center mb-4"
+                style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}
+              >
+                <f.icon className="h-5 w-5" style={{ color: "var(--ib-amber)" }} />
               </div>
-              <h3 className="font-semibold mb-1">{f.title}</h3>
-              <p className="text-sm text-muted-foreground">{f.desc}</p>
+              <h3 className="font-display text-lg mb-2" style={{ color: "var(--ib-fg)" }}>{f.title}</h3>
+              <p className="text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>{f.desc}</p>
             </div>
           ))}
         </section>
@@ -220,53 +170,49 @@ function GroupSessionLanding() {
       {modal === "create" && (
         <ModalOverlay onClose={closeModal}>
           <div
-            className="animate-scale-in glass-strong rounded-3xl w-full max-w-md mx-4 relative overflow-hidden"
+            className="animate-scale-in w-full max-w-md mx-4 relative"
+            style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/8">
-              <button
-                onClick={closeModal}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back
+            {/* Corner brackets */}
+            <span style={{ position: "absolute", top: -1, left: -1, width: 14, height: 14, borderTop: "2px solid var(--ib-amber)", borderLeft: "2px solid var(--ib-amber)" }} />
+            <span style={{ position: "absolute", bottom: -1, right: -1, width: 14, height: 14, borderBottom: "2px solid var(--ib-amber)", borderRight: "2px solid var(--ib-amber)" }} />
+
+            <div className="flex items-center justify-between px-6 pt-6 pb-4" style={{ borderBottom: "1px solid var(--ib-bdr)" }}>
+              <button onClick={closeModal} className="btn-ghost py-1 px-2 text-xs inline-flex items-center gap-1.5">
+                <ArrowLeft className="h-3.5 w-3.5" /> Back
               </button>
-              <h2 className="font-display font-bold text-base">Create a Meet</h2>
-              <button
-                onClick={closeModal}
-                aria-label="Close"
-                className="h-8 w-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition"
-              >
+              <h2 className="font-display text-base" style={{ color: "var(--ib-fg)" }}>Create a Meet</h2>
+              <button onClick={closeModal} aria-label="Close" className="h-8 w-8 flex items-center justify-center" style={{ color: "var(--ib-muted)", border: "1px solid var(--ib-bdr)" }}>
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="px-6 py-6 space-y-5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl gradient-cosmic flex items-center justify-center shadow-glow shrink-0">
-                  <Plus className="h-5 w-5 text-white" />
+                <div className="h-10 w-10 flex items-center justify-center shrink-0" style={{ background: "var(--ib-amber)", clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)" }}>
+                  <Plus className="h-5 w-5" style={{ color: "#0c0b09" }} />
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>
                   A session ID will be generated when you start. Share it with participants to let them join.
                 </p>
               </div>
 
-              {/* Discussion topic */}
-              <div className="rounded-2xl glass border border-white/10 p-4 space-y-3">
+              {/* Topic */}
+              <div className="p-4 space-y-3" style={{ background: "var(--ib-card2)", border: "1px solid var(--ib-bdr)" }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Tag className="h-3.5 w-3.5 text-accent" />
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Discussion topic</span>
-                    {topicReady && (
-                      <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full font-semibold bg-accent/20 text-accent border border-accent/30">
-                        ✦ Gemini
-                      </span>
-                    )}
+                    <Tag className="h-3.5 w-3.5" style={{ color: "var(--ib-amber)" }} />
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+                      Discussion topic
+                    </span>
+                    {topicReady && <span className="ib-chip">✦ Gemini</span>}
                   </div>
                   <button
                     onClick={regenerateTopic}
                     disabled={!topicReady && !topicError}
-                    title="Generate new topic"
-                    className="h-7 w-7 rounded-lg glass flex items-center justify-center hover:shadow-glow transition hover:text-accent disabled:opacity-40"
+                    className="h-7 w-7 flex items-center justify-center transition-colors disabled:opacity-40"
+                    style={{ border: "1px solid var(--ib-bdr)", color: "var(--ib-muted)" }}
                   >
                     {!topicReady && !topicError
                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -275,14 +221,14 @@ function GroupSessionLanding() {
                   </button>
                 </div>
                 {topicError ? (
-                  <div className="flex items-start gap-2 text-destructive text-xs">
+                  <div className="flex items-start gap-2 text-xs" style={{ color: "var(--ib-terra)" }}>
                     <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <span>{topicError}</span>
                   </div>
                 ) : (
-                  <p className="text-sm font-medium leading-snug min-h-[2.5rem]">
+                  <p className="text-sm font-medium leading-snug min-h-[2.5rem]" style={{ color: "var(--ib-fg)", fontFamily: "'DM Sans',sans-serif" }}>
                     {!topicReady
-                      ? <span className="text-muted-foreground animate-pulse">Generating topic…</span>
+                      ? <span style={{ color: "var(--ib-muted)" }} className="animate-pulse">Generating topic…</span>
                       : generatedTopic
                     }
                   </p>
@@ -292,10 +238,10 @@ function GroupSessionLanding() {
               <button
                 onClick={startSession}
                 disabled={creating || !topicReady || !!topicError}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-cosmic py-3.5 font-semibold text-white shadow-glow hover:opacity-90 disabled:opacity-60 transition"
+                className="btn-primary w-full"
               >
                 {creating
-                  ? <><span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Creating…</>
+                  ? <><span className="h-4 w-4 rounded-full border-2 border-black/30 border-t-black animate-spin" /> Creating…</>
                   : <>Start session <ArrowRight className="h-4 w-4" /></>
                 }
               </button>
@@ -308,38 +254,35 @@ function GroupSessionLanding() {
       {modal === "join" && (
         <ModalOverlay onClose={closeModal}>
           <div
-            className="animate-scale-in glass-strong rounded-3xl w-full max-w-md mx-4 relative overflow-hidden"
+            className="animate-scale-in w-full max-w-md mx-4 relative"
+            style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/8">
-              <button
-                onClick={closeModal}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back
+            <span style={{ position: "absolute", top: -1, left: -1, width: 14, height: 14, borderTop: "2px solid var(--ib-amber)", borderLeft: "2px solid var(--ib-amber)" }} />
+            <span style={{ position: "absolute", bottom: -1, right: -1, width: 14, height: 14, borderBottom: "2px solid var(--ib-amber)", borderRight: "2px solid var(--ib-amber)" }} />
+
+            <div className="flex items-center justify-between px-6 pt-6 pb-4" style={{ borderBottom: "1px solid var(--ib-bdr)" }}>
+              <button onClick={closeModal} className="btn-ghost py-1 px-2 text-xs inline-flex items-center gap-1.5">
+                <ArrowLeft className="h-3.5 w-3.5" /> Back
               </button>
-              <h2 className="font-display font-bold text-base">Join a Meet</h2>
-              <button
-                onClick={closeModal}
-                aria-label="Close"
-                className="h-8 w-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition"
-              >
+              <h2 className="font-display text-base" style={{ color: "var(--ib-fg)" }}>Join a Meet</h2>
+              <button onClick={closeModal} aria-label="Close" className="h-8 w-8 flex items-center justify-center" style={{ color: "var(--ib-muted)", border: "1px solid var(--ib-bdr)" }}>
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="px-6 py-6 space-y-5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan/40 to-accent/30 flex items-center justify-center shadow-glow-cyan shrink-0">
-                  <LogIn className="h-5 w-5" />
+                <div className="h-10 w-10 flex items-center justify-center shrink-0" style={{ background: "rgba(192,132,252,0.15)", border: "1px solid rgba(192,132,252,0.3)" }}>
+                  <LogIn className="h-5 w-5" style={{ color: "var(--ib-purple)" }} />
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>
                   Enter the session ID shared by your host to join instantly.
                 </p>
               </div>
 
               <div>
-                <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">
+                <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)", display: "block", marginBottom: "0.5rem" }}>
                   Session ID
                 </label>
                 <input
@@ -348,24 +291,17 @@ function GroupSessionLanding() {
                   onChange={(e) => setJoinId(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === "Enter" && joinSession()}
                   placeholder="e.g. ABCD-EFGH-IJKL"
-                  className="w-full rounded-xl bg-white/5 border border-border/60 px-4 py-3 font-mono text-lg tracking-widest placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/60 focus:shadow-glow transition"
+                  className="ib-input"
+                  style={{ fontSize: "1rem", letterSpacing: "0.15em", textTransform: "uppercase" }}
                   autoFocus
                 />
               </div>
 
-              <button
-                onClick={joinSession}
-                disabled={joining}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-cosmic py-3.5 font-semibold text-white shadow-glow hover:opacity-90 disabled:opacity-60 transition"
-              >
-                {joining ? (
-                  <>
-                    <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                    Joining…
-                  </>
-                ) : (
-                  <>Join session <ArrowRight className="h-4 w-4" /></>
-                )}
+              <button onClick={joinSession} disabled={joining} className="btn-primary w-full">
+                {joining
+                  ? <><span className="h-4 w-4 rounded-full border-2 border-black/30 border-t-black animate-spin" /> Joining…</>
+                  : <>Join session <ArrowRight className="h-4 w-4" /></>
+                }
               </button>
             </div>
           </div>
@@ -378,7 +314,8 @@ function GroupSessionLanding() {
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md animate-fade-in p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in p-4"
+      style={{ background: "rgba(12,11,9,0.85)", backdropFilter: "blur(8px)" }}
       onClick={onClose}
     >
       {children}

@@ -2,83 +2,114 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useAISession } from "@/lib/useAISession";
 import { downloadReport } from "@/lib/generateAISessionReport";
 import {
-  Mic,
-  MicOff,
-  Square,
-  Play,
-  Download,
-  Sparkles,
-  Volume2,
-  VolumeX,
-  RefreshCw,
-  MessageSquare,
-  Clock,
-  RotateCcw,
+  Mic, MicOff, Square, Play, Download, Sparkles,
+  Volume2, VolumeX, RefreshCw, MessageSquare, Clock, RotateCcw,
 } from "lucide-react";
 import { useRef, useEffect } from "react";
 
 export const Route = createFileRoute("/ai-session")({
   head: () => ({
     meta: [
-      { title: "AI Session — GD Bot" },
+      { title: "AI Session — INTELLI BOT" },
       { name: "description", content: "Real-time speech-to-speech AI discussion partner." },
     ],
   }),
   component: AISessionPage,
 });
 
-// ── Timer formatter ───────────────────────────────────────────────────────────
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 }
 
-// ── Phase indicator ───────────────────────────────────────────────────────────
+/* ── Canvas waveform — reads CSS vars so it adapts to light/dark ─────────── */
+function WaveformCanvas({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let frame = 0;
+    let raf: number;
+    const draw = () => {
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const amp = active ? 22 : 6;
+      // Read CSS variable at draw time so theme changes are reflected immediately
+      const styles = getComputedStyle(document.documentElement);
+      const amberRaw = styles.getPropertyValue("--ib-amber").trim() || "#f59e0b";
+      const mutedRaw = styles.getPropertyValue("--ib-muted").trim() || "#5e5a54";
+      ctx.strokeStyle = active
+        ? amberRaw.startsWith("#") ? amberRaw + "99" : amberRaw   // ~60% opacity
+        : mutedRaw.startsWith("#") ? mutedRaw + "66" : mutedRaw;  // ~40% opacity
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let x = 0; x < canvas.width; x++) {
+        const t = (x / canvas.width) * Math.PI * 8 + frame * 0.05;
+        const y = canvas.height / 2 + Math.sin(t) * amp + Math.sin(t * 2.1 + 1) * (amp * 0.4);
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      frame++;
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+  return <canvas ref={canvasRef} style={{ width: "100%", height: "48px", display: "block" }} />;
+}
+
+/* ── Phase indicator ─────────────────────────────────────────────────────── */
 function PhaseIndicator({ phase }: { phase: string }) {
   const config: Record<string, { label: string; color: string; pulse: boolean }> = {
-    idle:       { label: "Ready",      color: "bg-muted-foreground", pulse: false },
-    starting:   { label: "Starting…",  color: "bg-warning",          pulse: true  },
-    listening:  { label: "Listening",  color: "bg-success",          pulse: true  },
-    processing: { label: "Thinking…",  color: "bg-primary",          pulse: true  },
-    speaking:   { label: "AI Speaking",color: "bg-accent",           pulse: true  },
-    ended:      { label: "Ended",      color: "bg-muted-foreground", pulse: false },
+    idle:       { label: "Ready",       color: "var(--ib-muted)",  pulse: false },
+    starting:   { label: "Starting…",  color: "var(--ib-gold)",   pulse: true  },
+    listening:  { label: "Listening",  color: "var(--ib-ok)",     pulse: true  },
+    processing: { label: "Thinking…",  color: "var(--ib-amber)",  pulse: true  },
+    speaking:   { label: "AI Speaking",color: "var(--ib-purple)", pulse: true  },
+    ended:      { label: "Ended",      color: "var(--ib-muted)",  pulse: false },
   };
   const { label, color, pulse } = config[phase] ?? config.idle;
   return (
     <div className="flex items-center gap-2">
-      <span className={`h-2 w-2 rounded-full ${color} ${pulse ? "animate-pulse" : ""}`} />
-      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      <span
+        className="h-2 w-2 rounded-full"
+        style={{ background: color, animation: pulse ? "pulse 1.5s infinite" : "none" }}
+      />
+      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-mut2)" }}>
+        {label}
+      </span>
     </div>
   );
 }
 
-// ── Message bubble ────────────────────────────────────────────────────────────
-function MessageBubble({
-  role,
-  content,
-  ts,
-}: {
-  role: "user" | "assistant";
-  content: string;
-  ts: number;
-}) {
+/* ── Message bubble ──────────────────────────────────────────────────────── */
+function MessageBubble({ role, content, ts }: { role: "user" | "assistant"; content: string; ts: number }) {
   const isUser = role === "user";
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} animate-fade-up`}>
       <div className="flex items-center gap-1.5 mb-1">
-        {!isUser && <Sparkles className="h-3 w-3 text-primary" />}
-        <span className="text-[10px] text-muted-foreground">
-          {isUser ? "You" : "AI"} · {new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {!isUser && <Sparkles className="h-3 w-3" style={{ color: "var(--ib-amber)" }} />}
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+          {isUser ? "You >" : "AI >"} · {new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>
       </div>
       <div
-        className={[
-          "max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-          isUser
-            ? "bg-primary text-primary-foreground rounded-br-sm"
-            : "glass border border-white/10 rounded-bl-sm",
-        ].join(" ")}
+        className="max-w-[85%] sm:max-w-[70%] px-4 py-3 text-sm leading-relaxed"
+        style={{
+          background: isUser ? "var(--ib-amber)" : "var(--ib-card2)",
+          color: isUser ? "#0c0b09" : "var(--ib-fg)",
+          border: isUser ? "none" : "1px solid var(--ib-bdr)",
+          fontFamily: isUser ? "'DM Sans',sans-serif" : "'JetBrains Mono',monospace",
+          fontSize: isUser ? "0.875rem" : "0.75rem",
+          fontWeight: isUser ? 400 : 400,
+          clipPath: isUser
+            ? "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)"
+            : "polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px)",
+        }}
       >
         {content}
       </div>
@@ -86,149 +117,160 @@ function MessageBubble({
   );
 }
 
-// ── Score card ────────────────────────────────────────────────────────────────
+/* ── Score card ──────────────────────────────────────────────────────────── */
 function ScoreCard({ label, value }: { label: string; value: number }) {
-  const color =
-    value >= 8 ? "text-success" : value >= 6 ? "text-warning" : "text-destructive";
+  const color = value >= 8 ? "var(--ib-ok)" : value >= 6 ? "var(--ib-gold)" : "var(--ib-terra)";
   return (
-    <div className="glass border border-white/8 rounded-xl p-4 text-center">
-      <div className={`text-2xl font-bold font-mono ${color}`}>{value}/10</div>
-      <div className="text-xs text-muted-foreground mt-1">{label}</div>
-      <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
-          style={{ width: `${(value / 10) * 100}%` }}
-        />
+    <div className="p-4 text-center" style={{ background: "var(--ib-card2)", border: "1px solid var(--ib-bdr)", borderBottom: "2px solid var(--ib-amber)" }}>
+      <div className="font-display text-2xl" style={{ color }}>{value}/10</div>
+      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)", marginTop: "2px" }}>
+        {label}
+      </div>
+      <div className="ib-bar mt-2">
+        <div className="ib-bar-fill" style={{ width: `${(value / 10) * 100}%` }} />
       </div>
     </div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+/* ── Main ────────────────────────────────────────────────────────────────── */
 function AISessionPage() {
   const {
-    phase,
-    topic,
-    messages,
-    liveTranscript,
-    elapsedSeconds,
-    report,
-    error,
-    isTTSAvailable,
-    startSession,
-    endSession,
-    toggleListening,
+    phase, topic, messages, liveTranscript, elapsedSeconds,
+    report, error, isTTSAvailable, startSession, endSession, toggleListening,
   } = useAISession();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, liveTranscript]);
 
   const isActive = phase !== "idle" && phase !== "ended";
-  const isEnded = phase === "ended";
+  const isEnded  = phase === "ended";
 
   return (
-    <div className="flex flex-col h-full min-h-0 animate-fade-in">
+    <div className="flex flex-col h-full min-h-0 animate-fade-in" style={{ background: "var(--ib-bg)" }}>
 
-      {/* ── Header bar ─────────────────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-border/50 flex items-center justify-between gap-4">
+      {/* Header */}
+      <div
+        className="shrink-0 px-4 sm:px-6 py-4 flex items-center justify-between gap-4"
+        style={{ background: "var(--ib-surf)", borderBottom: "1px solid var(--ib-bdr)" }}
+      >
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <Sparkles className="h-4.5 w-4.5 text-primary" />
+          <div
+            className="h-9 w-9 flex items-center justify-center shrink-0"
+            style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}
+          >
+            <Sparkles className="h-4 w-4" style={{ color: "var(--ib-amber)" }} />
           </div>
           <div>
-            <h1 className="font-semibold text-sm">AI Session</h1>
-            <p className="text-xs text-muted-foreground">Speech-to-speech discussion partner</p>
+            <h1 className="font-display text-base" style={{ color: "var(--ib-fg)" }}>AI Session</h1>
+            <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+              Speech-to-speech discussion partner
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* TTS status */}
           {isActive && (
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="hidden sm:flex items-center gap-1.5" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.08em", color: "var(--ib-muted)" }}>
               {isTTSAvailable
-                ? <Volume2 className="h-3.5 w-3.5 text-success" />
-                : <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />}
+                ? <Volume2 className="h-3.5 w-3.5" style={{ color: "var(--ib-ok)" }} />
+                : <VolumeX className="h-3.5 w-3.5" />}
               <span>{isTTSAvailable ? "Voice on" : "Voice off"}</span>
             </div>
           )}
-
-          {/* Timer */}
           {isActive && (
-            <div className="flex items-center gap-1.5 glass border border-white/10 rounded-lg px-3 py-1.5">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-mono text-sm font-semibold tabular-nums">
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5"
+              style={{ border: "1px solid var(--ib-bdr)", background: "var(--ib-card2)" }}
+            >
+              <Clock className="h-3.5 w-3.5" style={{ color: "var(--ib-muted)" }} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.8rem", color: "var(--ib-fg)", fontWeight: 700 }}>
                 {formatTime(elapsedSeconds)}
               </span>
             </div>
           )}
-
           <PhaseIndicator phase={phase} />
         </div>
       </div>
 
-      {/* ── Body ───────────────────────────────────────────────────────────── */}
+      {/* Body */}
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-4 sm:px-6 py-6 space-y-6">
 
-        {/* ── IDLE state ─────────────────────────────────────────────────── */}
+        {/* Idle */}
         {phase === "idle" && !isEnded && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
             <div className="relative">
-              <div className="h-24 w-24 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Sparkles className="h-10 w-10 text-primary" />
+              <div
+                className="h-24 w-24 flex items-center justify-center"
+                style={{
+                  background: "var(--ib-card2)",
+                  border: "1px solid var(--ib-amber)",
+                  clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)",
+                }}
+              >
+                <Sparkles className="h-10 w-10" style={{ color: "var(--ib-amber)" }} />
               </div>
-              <div className="absolute inset-0 rounded-full bg-primary/5 animate-ping" />
+              <div
+                className="absolute inset-0 animate-pulse-glow"
+                style={{
+                  border: "1px solid var(--ib-amber)",
+                  clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)",
+                  opacity: 0.4,
+                }}
+              />
             </div>
 
             <div className="space-y-3 max-w-md">
-              <h2 className="text-2xl font-bold font-display">Start an AI Discussion</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                A topic will be generated automatically. Speak naturally — the AI will respond
-                with voice and continue the discussion with you.
+              <h2 className="font-display text-3xl" style={{ color: "var(--ib-fg)" }}>Start an AI Discussion</h2>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>
+                A topic will be generated automatically. Speak naturally — the AI will respond with voice and continue the discussion with you.
               </p>
             </div>
 
             {error && (
-              <div className="glass border border-destructive/30 rounded-xl px-4 py-3 text-sm text-destructive max-w-md">
+              <div className="px-4 py-3 text-sm max-w-md" style={{ background: "rgba(220,138,107,0.1)", border: "1px solid rgba(220,138,107,0.3)", color: "var(--ib-terra)" }}>
                 {error}
               </div>
             )}
 
-            <button
-              onClick={() => startSession()}
-              className="flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_-8px_oklch(0.97_0_0/0.4)]"
-            >
-              <Play className="h-4.5 w-4.5" />
-              Start AI Session
+            <button onClick={() => startSession()} className="btn-primary" style={{ padding: "1rem 2.5rem", fontSize: "0.8rem" }}>
+              <Play className="h-4 w-4" /> Start AI Session
             </button>
           </div>
         )}
 
-        {/* ── STARTING state ─────────────────────────────────────────────── */}
+        {/* Starting */}
         {phase === "starting" && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-            <div className="h-16 w-16 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            <p className="text-muted-foreground text-sm">Generating topic and opening the discussion…</p>
+            <div className="h-16 w-16 rounded-full border-2 border-t-amber-400 animate-spin" style={{ borderColor: "var(--ib-bdr)", borderTopColor: "var(--ib-amber)" }} />
+            <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", letterSpacing: "0.1em", color: "var(--ib-muted)" }}>
+              Generating topic and opening the discussion…
+            </p>
           </div>
         )}
 
-        {/* ── ACTIVE / ENDED: Topic + conversation ───────────────────────── */}
+        {/* Active / Ended */}
         {(isActive || isEnded) && topic && (
           <>
             {/* Topic card */}
-            <div className="glass border border-primary/20 rounded-2xl p-5 bg-gradient-to-br from-primary/5 to-transparent">
+            <div className="p-5" style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)", borderLeft: "3px solid var(--ib-amber)" }}>
               <div className="flex items-start gap-3">
-                <MessageSquare className="h-4.5 w-4.5 text-primary mt-0.5 shrink-0" />
+                <MessageSquare className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--ib-amber)" }} />
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                  <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)", marginBottom: "0.25rem" }}>
                     Discussion Topic
                   </p>
-                  <p className="font-semibold text-sm leading-relaxed">{topic}</p>
+                  <p className="font-semibold text-sm leading-relaxed" style={{ color: "var(--ib-fg)", fontFamily: "'DM Sans',sans-serif" }}>{topic}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Waveform */}
+            <div style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)", padding: "0.5rem" }}>
+              <WaveformCanvas active={phase === "listening"} />
             </div>
 
             {/* Conversation */}
@@ -237,41 +279,49 @@ function AISessionPage() {
                 <MessageBubble key={msg.id} role={msg.role} content={msg.content} ts={msg.ts} />
               ))}
 
-              {/* Live transcript preview */}
               {liveTranscript && phase === "listening" && (
                 <div className="flex flex-col items-end animate-fade-up">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Mic className="h-3 w-3 text-success animate-pulse" />
-                    <span className="text-[10px] text-muted-foreground">You (live)</span>
+                    <Mic className="h-3 w-3 animate-pulse" style={{ color: "var(--ib-ok)" }} />
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
+                      You (live)
+                    </span>
                   </div>
-                  <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-relaxed bg-primary/20 border border-primary/30 text-foreground/80 italic">
+                  <div
+                    className="max-w-[85%] sm:max-w-[70%] px-4 py-3 text-sm leading-relaxed italic"
+                    style={{
+                      background: "var(--ib-card2)",
+                      border: "1px solid var(--ib-amber)",
+                      color: "var(--ib-fg)",
+                      fontFamily: "'DM Sans',sans-serif",
+                      opacity: 0.85,
+                    }}
+                  >
                     {liveTranscript}
                   </div>
                 </div>
               )}
 
-              {/* AI thinking indicator */}
               {phase === "processing" && (
                 <div className="flex flex-col items-start animate-fade-up">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Sparkles className="h-3 w-3 text-primary" />
-                    <span className="text-[10px] text-muted-foreground">AI</span>
+                    <Sparkles className="h-3 w-3" style={{ color: "var(--ib-amber)" }} />
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>AI</span>
                   </div>
-                  <div className="glass border border-white/10 rounded-2xl rounded-bl-sm px-4 py-3">
+                  <div className="px-4 py-3" style={{ background: "var(--ib-card2)", border: "1px solid var(--ib-bdr)" }}>
                     <div className="flex gap-1.5 items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                      {[0, 150, 300].map((d) => (
+                        <span key={d} className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--ib-amber)", animation: `bounce 1s ${d}ms infinite` }} />
+                      ))}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* AI speaking indicator */}
               {phase === "speaking" && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground animate-fade-in">
-                  <Volume2 className="h-3.5 w-3.5 text-accent animate-pulse" />
-                  <span>AI is speaking…</span>
+                <div className="flex items-center gap-2 text-xs animate-fade-in" style={{ color: "var(--ib-muted)" }}>
+                  <Volume2 className="h-3.5 w-3.5 animate-pulse" style={{ color: "var(--ib-purple)" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.1em" }}>AI is speaking…</span>
                 </div>
               )}
 
@@ -280,176 +330,135 @@ function AISessionPage() {
           </>
         )}
 
-        {/* ── REPORT section ─────────────────────────────────────────────── */}
+        {/* Report */}
         {isEnded && report && (
           <div className="space-y-4 animate-fade-up">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-base">Session Report</h2>
+              <h2 className="font-display text-2xl" style={{ color: "var(--ib-fg)" }}>Session Report</h2>
               <button
                 onClick={() => downloadReport(report)}
-                className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg glass border border-white/10 hover:border-white/20 transition"
+                className="btn-ghost inline-flex items-center gap-2"
+                style={{ padding: "0.4rem 1rem", fontSize: "0.6rem" }}
               >
-                <Download className="h-3.5 w-3.5" />
-                Download HTML
+                <Download className="h-3.5 w-3.5" /> Download HTML
               </button>
             </div>
 
-            {/* Score grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <ScoreCard label="Overall" value={report.analysis.overallScore} />
+              <ScoreCard label="Overall"    value={report.analysis.overallScore} />
               <ScoreCard label="Vocabulary" value={report.analysis.vocabularyScore} />
-              <ScoreCard label="Clarity" value={report.analysis.clarityScore} />
+              <ScoreCard label="Clarity"    value={report.analysis.clarityScore} />
               <ScoreCard label="Engagement" value={report.analysis.engagementScore} />
             </div>
 
-            {/* Summary */}
-            <div className="glass border border-white/8 rounded-xl p-4 space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Summary</p>
-              <p className="text-sm leading-relaxed text-foreground/90">{report.analysis.summary}</p>
-            </div>
+            {[
+              { label: "Summary",                text: report.analysis.summary },
+              { label: "Communication Feedback", text: report.analysis.communicationFeedback },
+              { label: "Contextual Relevance",   text: report.analysis.contextualRelevance },
+            ].map((s) => (
+              <div key={s.label} className="p-4 space-y-2" style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)" }}>
+                <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)" }}>{s.label}</p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ib-fg)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>{s.text}</p>
+              </div>
+            ))}
 
-            {/* Communication feedback */}
-            <div className="glass border border-white/8 rounded-xl p-4 space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Communication Feedback</p>
-              <p className="text-sm leading-relaxed text-foreground/90">{report.analysis.communicationFeedback}</p>
-            </div>
-
-            {/* Contextual relevance */}
-            <div className="glass border border-white/8 rounded-xl p-4 space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Contextual Relevance</p>
-              <p className="text-sm leading-relaxed text-foreground/90">{report.analysis.contextualRelevance}</p>
-            </div>
-
-            {/* Strengths */}
-            <div className="glass border border-white/8 rounded-xl p-4 space-y-3">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Strengths</p>
-              <div className="flex flex-wrap gap-2">
-                {report.analysis.strengths.map((s, i) => (
-                  <span key={i} className="text-xs px-3 py-1 rounded-full bg-success/10 border border-success/20 text-success">
-                    {s}
-                  </span>
-                ))}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="p-4" style={{ background: "rgba(134,239,172,0.06)", border: "1px solid rgba(134,239,172,0.2)" }}>
+                <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-ok)", marginBottom: "0.5rem" }}>Strengths</p>
+                <div className="flex flex-wrap gap-2">
+                  {report.analysis.strengths.map((s, i) => (
+                    <span key={i} className="ib-chip" style={{ background: "rgba(134,239,172,0.1)", color: "var(--ib-ok)", borderColor: "rgba(134,239,172,0.3)" }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="p-4" style={{ background: "rgba(220,138,107,0.06)", border: "1px solid rgba(220,138,107,0.2)" }}>
+                <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-terra)", marginBottom: "0.5rem" }}>Areas to Improve</p>
+                <div className="flex flex-wrap gap-2">
+                  {report.analysis.weaknesses.map((w, i) => (
+                    <span key={i} className="ib-chip" style={{ background: "rgba(220,138,107,0.1)", color: "var(--ib-terra)", borderColor: "rgba(220,138,107,0.3)" }}>{w}</span>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Weaknesses */}
-            <div className="glass border border-white/8 rounded-xl p-4 space-y-3">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Areas to Improve</p>
-              <div className="flex flex-wrap gap-2">
-                {report.analysis.weaknesses.map((w, i) => (
-                  <span key={i} className="text-xs px-3 py-1 rounded-full bg-destructive/10 border border-destructive/20 text-destructive">
-                    {w}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Grammar suggestions */}
-            <div className="glass border border-white/8 rounded-xl p-4 space-y-3">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Grammar & Language</p>
-              <ul className="space-y-1.5">
-                {report.analysis.grammarSuggestions.map((g, i) => (
-                  <li key={i} className="text-sm text-foreground/80 flex gap-2">
-                    <span className="text-warning shrink-0">→</span>
-                    {g}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Recommendations */}
-            <div className="glass border border-white/8 rounded-xl p-4 space-y-3">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Recommendations</p>
-              <ul className="space-y-1.5">
-                {report.analysis.improvements.map((imp, i) => (
-                  <li key={i} className="text-sm text-foreground/80 flex gap-2">
-                    <span className="text-primary shrink-0">✦</span>
-                    {imp}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Start new session */}
             <div className="flex justify-center pt-4 pb-8">
-              <button
-                onClick={() => window.location.reload()}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl glass border border-white/10 hover:border-white/20 text-sm font-medium transition hover:scale-105 active:scale-95"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Start New Session
+              <button onClick={() => window.location.reload()} className="btn-ghost inline-flex items-center gap-2">
+                <RotateCcw className="h-4 w-4" /> Start New Session
               </button>
             </div>
           </div>
         )}
 
-        {/* Ended but no report (too short) */}
         {isEnded && !report && (
           <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-            <p className="text-muted-foreground text-sm">Session ended. Start a new one to get a full report.</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl glass border border-white/10 hover:border-white/20 text-sm font-medium transition"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Start New Session
+            <p className="text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif" }}>
+              Session ended. Start a new one to get a full report.
+            </p>
+            <button onClick={() => window.location.reload()} className="btn-ghost inline-flex items-center gap-2">
+              <RotateCcw className="h-4 w-4" /> Start New Session
             </button>
           </div>
         )}
       </div>
 
-      {/* ── Control bar (only when active) ─────────────────────────────────── */}
+      {/* Control bar */}
       {isActive && (
-        <div className="shrink-0 border-t border-border/50 bg-background/80 backdrop-blur-xl px-4 sm:px-6 py-4">
+        <div
+          className="shrink-0 px-4 sm:px-6 py-4"
+          style={{ borderTop: "1px solid var(--ib-bdr)", background: "var(--ib-surf)" }}
+        >
           <div className="flex items-center justify-between max-w-lg mx-auto gap-4">
 
-            {/* Mic toggle */}
+            {/* Mic toggle — large chamfered amber button */}
             <button
               onClick={toggleListening}
               disabled={phase === "processing" || phase === "speaking" || phase === "starting"}
-              className={[
-                "flex flex-col items-center gap-1.5 rounded-2xl px-5 py-3 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed",
-                phase === "listening"
-                  ? "bg-success/20 border border-success/40 text-success shadow-[0_0_20px_-4px_oklch(0.72_0.17_155/0.5)]"
-                  : "glass border border-white/10 text-muted-foreground hover:text-foreground",
-              ].join(" ")}
+              className="flex flex-col items-center gap-1.5 px-5 py-3 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: phase === "listening" ? "rgba(245,158,11,0.15)" : "var(--ib-card2)",
+                border: `1px solid ${phase === "listening" ? "var(--ib-amber)" : "var(--ib-bdr)"}`,
+                clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%)",
+                animation: phase === "listening" ? "amber-pulse 2s infinite" : "none",
+                minWidth: "64px",
+              }}
             >
               {phase === "listening"
-                ? <Mic className="h-5 w-5 animate-pulse" />
-                : <MicOff className="h-5 w-5" />}
-              <span className="text-[10px] font-medium hidden sm:block">
-                {phase === "listening" ? "Listening" : "Speak"}
+                ? <Mic className="h-6 w-6 animate-pulse" style={{ color: "var(--ib-amber)" }} />
+                : <MicOff className="h-6 w-6" style={{ color: "var(--ib-muted)" }} />}
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.12em", textTransform: "uppercase", color: phase === "listening" ? "var(--ib-amber)" : "var(--ib-muted)" }}>
+                {phase === "listening" ? <span className="blink">Listening…</span> : "Speak"}
               </span>
             </button>
 
-            {/* Center: phase info */}
+            {/* Center info */}
             <div className="flex-1 text-center">
               {phase === "listening" && liveTranscript && (
-                <p className="text-xs text-muted-foreground truncate max-w-xs mx-auto italic">
+                <p className="text-xs truncate max-w-xs mx-auto italic" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif" }}>
                   "{liveTranscript.slice(0, 80)}{liveTranscript.length > 80 ? "…" : ""}"
                 </p>
               )}
               {phase === "processing" && (
                 <div className="flex items-center justify-center gap-1.5">
-                  <RefreshCw className="h-3.5 w-3.5 text-primary animate-spin" />
-                  <span className="text-xs text-muted-foreground">AI is thinking…</span>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" style={{ color: "var(--ib-amber)" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.08em", color: "var(--ib-muted)" }}>AI is thinking…</span>
                 </div>
               )}
               {phase === "speaking" && (
                 <div className="flex items-center justify-center gap-1.5">
-                  <Volume2 className="h-3.5 w-3.5 text-accent animate-pulse" />
-                  <span className="text-xs text-muted-foreground">AI speaking…</span>
+                  <Volume2 className="h-3.5 w-3.5 animate-pulse" style={{ color: "var(--ib-purple)" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.08em", color: "var(--ib-muted)" }}>AI speaking…</span>
                 </div>
               )}
             </div>
 
-            {/* End session */}
+            {/* End session — terracotta */}
             <button
               onClick={endSession}
-              className="flex flex-col items-center gap-1.5 rounded-2xl px-5 py-3 bg-destructive/20 hover:bg-destructive/40 border border-destructive/30 text-destructive transition-all hover:scale-105 active:scale-95"
+              className="btn-terra flex flex-col items-center gap-1.5 px-5 py-3"
+              style={{ minWidth: "64px" }}
             >
               <Square className="h-5 w-5" />
-              <span className="text-[10px] font-medium hidden sm:block">End</span>
+              <span style={{ fontSize: "0.5rem" }}>End</span>
             </button>
           </div>
         </div>

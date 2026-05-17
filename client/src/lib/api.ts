@@ -1,5 +1,5 @@
 /**
- * api.ts — Centralised API client for the GD Bot backend.
+ * api.ts — Centralised API client for the INTELLI BOT backend.
  *
  * All requests go to VITE_SERVER_URL (default http://localhost:4000).
  * The Vite dev server also proxies /api → localhost:4000 as a fallback.
