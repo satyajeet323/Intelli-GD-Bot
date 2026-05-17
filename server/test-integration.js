@@ -56,7 +56,7 @@ function waitFor(sock, event, ms = 4000) {
 // ── Test runner ───────────────────────────────────────────────────────────────
 async function run() {
   console.log("\n╔══════════════════════════════════════════════════════╗");
-  console.log("║   GD Bot — Full System Integration Test              ║");
+  console.log("║   INTELLI BOT — Full System Integration Test              ║");
   console.log("╚══════════════════════════════════════════════════════╝\n");
 
   // ── 1. Health & API map ───────────────────────────────────────────────────

@@ -20,7 +20,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 export const Route = createFileRoute("/gd/$sessionId")({
   head: () => ({
     meta: [
-      { title: "Fluency Session — GD Bot" },
+      { title: "Fluency Session — INTELLI BOT" },
       { name: "description", content: "Record your speech and get real-time English fluency analysis." },
     ],
   }),
