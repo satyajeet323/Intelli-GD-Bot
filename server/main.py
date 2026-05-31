@@ -19,6 +19,8 @@ import asyncio
 import numpy as np
 import librosa
 import scipy.signal as sig
+import threading
+import requests as _requests
 import google.genai as genai_new
 from CRNN import compute_fillers
 from Semantic import compute_relevance
@@ -29,16 +31,65 @@ load_dotenv()
 
 # ========== Configuration ==========
 GEMINI_MODEL = "gemini-2.5-flash"
-GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# ── Dynamic API key resolution ────────────────────────────────────────────────
+# Tries to fetch the active Gemini key from the Node.js API key management
+# service. Falls back to the GEMINI_API_KEY env var if the Node service is
+# unavailable or returns no key.
+
+_key_lock = threading.Lock()
+_cached_key = {"value": None, "ts": 0}
+_KEY_CACHE_TTL = 30  # seconds
+
+NODE_API_URL = os.getenv("NODE_API_URL", "http://localhost:4000")
+INTERNAL_SECRET = os.getenv("INTERNAL_SERVICE_SECRET") or os.getenv("JWT_SECRET", "")
+
+def _fetch_key_from_node():
+    """Fetch the active Gemini key from the Node API key management service."""
+    try:
+        resp = _requests.get(
+            f"{NODE_API_URL}/api/admin/api-keys/internal/active-key/gemini",
+            headers={"x-internal-secret": INTERNAL_SECRET},
+            timeout=3,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("value")
+    except Exception:
+        pass
+    return None
+
+def get_gemini_key():
+    """Return the current active Gemini API key (cached for 30s)."""
+    with _key_lock:
+        now = time.time()
+        if _cached_key["value"] and (now - _cached_key["ts"]) < _KEY_CACHE_TTL:
+            return _cached_key["value"]
+        # Try Node service first
+        key = _fetch_key_from_node()
+        if not key:
+            # Fallback to env var
+            key = os.getenv("GEMINI_API_KEY")
+        if key:
+            _cached_key["value"] = key
+            _cached_key["ts"] = now
+        return key
+
+GOOGLE_API_KEY = get_gemini_key()
 if not GOOGLE_API_KEY:
-    raise ValueError("GEMINI_API_KEY must be set in .env")
+    print("[WARNING] No GEMINI_API_KEY available — Gemini features will fail until a key is configured.")
 
-_gemini_client = genai_new.Client(api_key=GOOGLE_API_KEY)
+def _get_gemini_client():
+    """Return a Gemini client using the current active key."""
+    key = get_gemini_key()
+    if not key:
+        raise ValueError("No active Gemini API key. Add one via the Admin Panel → API Keys.")
+    return genai_new.Client(api_key=key)
 
 def _generate(prompt):
-    """Call Gemini for content generation."""
-    response = _gemini_client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+    """Call Gemini for content generation with dynamic key resolution."""
+    client = _get_gemini_client()
+    response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
     return response.text
 _HERE = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(_HERE, "temp")

@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+
+# Node modules (installed inside container)
+node_modules
+*/node_modules
+
+# Build outputs
+client/dist
+client/.tanstack
+
+# Dev/test files
+server/test-*.js
+server/test-*.ps1
+server/segments_temp
+server/sessions/*.db
+
+# Env files (injected at runtime)
+.env
+.env.*
+server/.env
+client/.env
+
+# Docs & CI configs
+*.md
+.github
+.vscode
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

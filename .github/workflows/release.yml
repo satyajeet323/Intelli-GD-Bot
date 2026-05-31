@@ -1,0 +1,60 @@
+# ============================================================
+# Release — Automated versioning & changelog on main merges
+# ============================================================
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        type: choice
+        options: [patch, minor, major]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate changelog & bump version
+        id: changelog
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: node
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Build release artifacts
+        if: ${{ steps.changelog.outputs.release_created }}
+        run: |
+          cd client && npm ci && npm run build
+          tar -czf frontend-dist-${{ steps.changelog.outputs.tag_name }}.tar.gz -C client dist/
+
+      - name: Upload release assets
+        if: ${{ steps.changelog.outputs.release_created }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag_name }}
+          files: |
+            frontend-dist-${{ steps.changelog.outputs.tag_name }}.tar.gz

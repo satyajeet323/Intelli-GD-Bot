@@ -1,0 +1,29 @@
+# robots.txt — INTELLI BOT
+# https://intellibot.app
+
+User-agent: *
+
+# Allow public pages
+Allow: /$
+Allow: /login
+Allow: /register
+
+# Block authenticated / private app routes
+Disallow: /dashboard
+Disallow: /ai-session
+Disallow: /group-session/
+Disallow: /gd/
+Disallow: /report/
+Disallow: /history
+Disallow: /profile
+
+# Block admin panel entirely
+Disallow: /admin/
+
+# Block build artifacts and internal paths
+Disallow: /src/
+Disallow: /_build/
+Disallow: /node_modules/
+
+# Sitemap location
+Sitemap: https://intellibot.app/sitemap.xml

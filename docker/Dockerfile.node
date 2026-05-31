@@ -1,0 +1,46 @@
+# ============================================================
+# Node.js Backend — Multi-stage production image
+# Services: Express REST API + Socket.io WebSocket server
+# Port: 4000
+# ============================================================
+
+# ── Stage 1: deps ──────────────────────────────────────────
+FROM node:20-alpine AS deps
+WORKDIR /app
+
+# Install only production dependencies
+COPY server/package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# ── Stage 2: build (no build step needed for ESM) ─────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Security: run as non-root
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser  --system --uid 1001 nodeapp
+
+# Copy deps and source
+COPY --from=deps --chown=nodeapp:nodejs /app/node_modules ./node_modules
+COPY --chown=nodeapp:nodejs server/src ./src
+COPY --chown=nodeapp:nodejs server/package.json ./
+
+# Create upload directory
+RUN mkdir -p uploads && chown nodeapp:nodejs uploads
+
+# Build args for metadata
+ARG BUILD_SHA=unknown
+ARG BUILD_VERSION=unknown
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
+ENV BUILD_SHA=${BUILD_SHA}
+ENV BUILD_VERSION=${BUILD_VERSION}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:4000/health || exit 1
+
+USER nodeapp
+EXPOSE 4000
+
+CMD ["node", "src/index.js"]

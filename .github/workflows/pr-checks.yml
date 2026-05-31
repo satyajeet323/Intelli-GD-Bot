@@ -1,0 +1,190 @@
+# ============================================================
+# PR Checks — Fast feedback on every pull request
+# Runs in parallel: lint, type-check, build, size-report
+# ============================================================
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Skip draft PRs
+  check-draft:
+    name: Check Draft Status
+    runs-on: ubuntu-latest
+    outputs:
+      is_draft: ${{ steps.check.outputs.is_draft }}
+    steps:
+      - id: check
+        run: echo "is_draft=${{ github.event.pull_request.draft }}" >> $GITHUB_OUTPUT
+
+  # ── PR title lint (conventional commits) ──────────────────
+  pr-title:
+    name: PR Title Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+
+  # ── Changed files detection ────────────────────────────────
+  detect-changes:
+    name: Detect Changed Files
+    runs-on: ubuntu-latest
+    outputs:
+      client: ${{ steps.filter.outputs.client }}
+      server: ${{ steps.filter.outputs.server }}
+      python: ${{ steps.filter.outputs.python }}
+      docker: ${{ steps.filter.outputs.docker }}
+      ci: ${{ steps.filter.outputs.ci }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            client:
+              - 'client/**'
+            server:
+              - 'server/src/**'
+              - 'server/package*.json'
+            python:
+              - 'server/*.py'
+              - 'server/requirements.txt'
+            docker:
+              - 'docker/**'
+              - 'docker-compose*.yml'
+            ci:
+              - '.github/**'
+
+  # ── Frontend checks ────────────────────────────────────────
+  frontend-checks:
+    name: Frontend Checks
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.client == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install deps
+        working-directory: client
+        run: npm ci
+
+      - name: Lint
+        working-directory: client
+        run: npm run lint
+
+      - name: TypeScript check
+        working-directory: client
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: client
+        env:
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Bundle size report
+        working-directory: client
+        run: |
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ >> $GITHUB_STEP_SUMMARY
+          find dist -name "*.js" -exec du -sh {} \; | sort -rh | head -10 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ── Backend checks ─────────────────────────────────────────
+  backend-checks:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.server == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install deps
+        working-directory: server
+        run: npm ci
+
+      - name: Syntax validation
+        working-directory: server
+        run: |
+          for f in src/**/*.js src/*.js; do
+            [ -f "$f" ] && node --check "$f" && echo "  ✓ $f"
+          done
+
+  # ── Python checks ──────────────────────────────────────────
+  python-checks:
+    name: Python Checks
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Syntax check
+        working-directory: server
+        run: |
+          for f in *.py; do
+            python -m py_compile "$f" && echo "  ✓ $f"
+          done
+
+  # ── PR summary ─────────────────────────────────────────────
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [pr-title, detect-changes, frontend-checks, backend-checks, python-checks]
+    if: always()
+    steps:
+      - name: Write PR summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = {
+              'PR Title': '${{ needs.pr-title.result }}',
+              'Frontend': '${{ needs.frontend-checks.result }}',
+              'Backend': '${{ needs.backend-checks.result }}',
+              'Python': '${{ needs.python-checks.result }}'
+            };
+            const icon = r => r === 'success' ? '[OK]' : r === 'skipped' ? '[SKIP]' : '[FAIL]';
+            const rows = Object.entries(jobs).map(([k,v]) => `| ${k} | ${icon(v)} ${v} |`).join('\n');
+            const body = `## PR Check Results\n| Check | Status |\n|---|---|\n${rows}`;
+            await core.summary.addRaw(body).write();

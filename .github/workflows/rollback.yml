@@ -1,0 +1,113 @@
+# ============================================================
+# Manual Rollback Workflow
+# Trigger: workflow_dispatch only (manual emergency rollback)
+# ============================================================
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [staging, production]
+      image_tag:
+        description: Image tag to roll back to (e.g. prod-abc1234-42)
+        required: true
+      reason:
+        description: Reason for rollback
+        required: true
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log rollback intent
+        run: |
+          echo "=== ROLLBACK INITIATED ==="
+          echo "Environment : ${{ inputs.environment }}"
+          echo "Target tag  : ${{ inputs.image_tag }}"
+          echo "Reason      : ${{ inputs.reason }}"
+          echo "Actor       : ${{ github.actor }}"
+          echo "Time        : $(date -u)"
+
+      - name: Execute rollback (staging)
+        if: inputs.environment == 'staging'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ vars.STAGING_APP_DIR || '/opt/gdplatform' }}
+            export IMAGE_TAG="${{ inputs.image_tag }}"
+            export REGISTRY=ghcr.io
+            export IMAGE_PREFIX=${{ github.repository_owner }}/${{ github.event.repository.name }}
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.staging.yml pull
+            docker compose -f docker-compose.staging.yml up -d --remove-orphans
+            echo "Staging rollback complete."
+
+      - name: Execute rollback (production)
+        if: inputs.environment == 'production'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ vars.PROD_APP_DIR || '/opt/gdplatform' }}
+            export IMAGE_TAG="${{ inputs.image_tag }}"
+            export REGISTRY=ghcr.io
+            export IMAGE_PREFIX=${{ github.repository_owner }}/${{ github.event.repository.name }}
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+            echo "Production rollback complete."
+
+      - name: Verify rollback health
+        run: |
+          URL="${{ inputs.environment == 'production' && vars.PROD_URL || vars.STAGING_URL }}"
+          for i in {1..10}; do
+            if curl -sf "$URL/health"; then
+              echo "Service healthy after rollback."
+              exit 0
+            fi
+            sleep 8
+          done
+          echo "Health check failed after rollback — manual intervention required."
+          exit 1
+
+      - name: Notify rollback
+        if: always()
+        uses: slackapi/slack-github-action@v1.26.0
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        with:
+          payload: |
+            {
+              "text": "ROLLBACK - ${{ inputs.environment }} -> ${{ inputs.image_tag }}",
+              "attachments": [{
+                "color": "warning",
+                "fields": [
+                  {"title": "Reason", "value": "${{ inputs.reason }}", "short": false},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "Status", "value": "${{ job.status }}", "short": true}
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

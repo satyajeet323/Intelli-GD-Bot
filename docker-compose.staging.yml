@@ -1,0 +1,83 @@
+# ============================================================
+# docker-compose.staging.yml — Staging environment
+# Uses pre-built images from GHCR
+# ============================================================
+version: "3.9"
+
+services:
+  backend-node:
+    image: ${REGISTRY}/${IMAGE_PREFIX}/backend-node:${IMAGE_TAG:-staging-latest}
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=staging
+      - PORT=4000
+      - MONGODB_URI=${MONGODB_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=7d
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - CLIENT_ORIGINS=${CLIENT_ORIGINS}
+      - PYTHON_SERVICE_URL=http://backend-python:8000
+      - BCRYPT_ROUNDS=12
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  backend-python:
+    image: ${REGISTRY}/${IMAGE_PREFIX}/backend-python:${IMAGE_TAG:-staging-latest}
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "6000:6000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - python-temp:/app/temp
+      - python-sessions:/app/sessions
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 15s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  frontend:
+    image: ${REGISTRY}/${IMAGE_PREFIX}/frontend:${IMAGE_TAG:-staging-latest}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-node
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  uploads:
+  python-temp:
+  python-sessions:
+
+networks:
+  default:
+    name: gdplatform-staging

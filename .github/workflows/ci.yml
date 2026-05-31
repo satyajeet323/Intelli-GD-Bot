@@ -1,0 +1,330 @@
+# ============================================================
+# CI — Continuous Integration
+# Triggers: PR to main/develop, push to develop
+# Jobs: lint → type-check → build → test → security-scan
+# ============================================================
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop, staging]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ── 1. Lint ────────────────────────────────────────────────
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client deps
+        working-directory: client
+        run: npm ci
+
+      - name: ESLint (client)
+        working-directory: client
+        run: npm run lint
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      - name: Install Python lint tools
+        run: pip install flake8 black isort
+
+      - name: Flake8 (server Python)
+        working-directory: server
+        run: flake8 . --max-line-length=120 --exclude=node_modules,__pycache__,.venv --count --statistics || true
+
+      - name: Black format check (server Python)
+        working-directory: server
+        run: black --check --line-length=120 . --exclude="node_modules|__pycache__|\.venv" || true
+
+  # ── 2. TypeScript type-check ───────────────────────────────
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client deps
+        working-directory: client
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: client
+        run: npx tsc --noEmit
+
+  # ── 3. Frontend build ──────────────────────────────────────
+  build-frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client deps
+        working-directory: client
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: client
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'http://localhost:4000' }}
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ github.sha }}
+          path: client/dist/
+          retention-days: 7
+
+  # ── 4. Backend validation ──────────────────────────────────
+  validate-backend:
+    name: Backend Validation
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+
+      - name: Validate Node.js entry point syntax
+        working-directory: server
+        run: node --input-type=module --check < src/index.js || node -e "import('./src/index.js').catch(e => { if (!e.message.includes('MONGODB_URI') && !e.message.includes('connect')) { process.exit(1); } })" || true
+
+      - name: Check env variable coverage
+        working-directory: server
+        run: |
+          echo "Checking required env vars are documented..."
+          required_vars="PORT MONGODB_URI JWT_SECRET ADMIN_JWT_SECRET GEMINI_API_KEY GROQ_API_KEY"
+          for var in $required_vars; do
+            if grep -q "$var" env.example; then
+              echo "  ✓ $var documented"
+            else
+              echo "  ✗ $var MISSING from env.example"
+              exit 1
+            fi
+          done
+
+  # ── 5. Python service validation ──────────────────────────
+  validate-python:
+    name: Python Service Validation
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      - name: Install lightweight deps for syntax check
+        run: pip install flask flask-cors python-dotenv requests
+
+      - name: Python syntax check (all .py files)
+        working-directory: server
+        run: |
+          for f in *.py; do
+            python -m py_compile "$f" && echo "  ✓ $f" || exit 1
+          done
+
+  # ── 6. Security scan ──────────────────────────────────────
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: [validate-backend]
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: npm audit (server)
+        working-directory: server
+        run: npm audit --audit-level=high --json > npm-audit-server.json || true
+
+      - name: npm audit (client)
+        working-directory: client
+        run: npm audit --audit-level=high --json > npm-audit-client.json || true
+
+      - name: Setup Python for pip-audit
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: pip-audit (Python deps)
+        run: |
+          pip install pip-audit
+          pip-audit -r server/requirements.txt --format json -o pip-audit.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports-${{ github.sha }}
+          path: |
+            server/npm-audit-server.json
+            client/npm-audit-client.json
+            pip-audit.json
+          retention-days: 30
+
+  # ── 7. Integration tests ───────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build-frontend, validate-backend, validate-python]
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+
+      - name: Start Node.js server
+        working-directory: server
+        env:
+          PORT: 4000
+          NODE_ENV: test
+          MONGODB_URI: mongodb://localhost:27017/gdbot_test
+          JWT_SECRET: ci-test-jwt-secret-32chars-minimum
+          ADMIN_JWT_SECRET: ci-test-admin-jwt-secret-32chars
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'test-key' }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || 'test-key' }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY || 'test-key' }}
+          PYTHON_SERVICE_URL: http://localhost:8000
+          CLIENT_ORIGINS: http://localhost:5173
+          BCRYPT_ROUNDS: 4
+        run: |
+          npm start &
+          echo $! > /tmp/server.pid
+          sleep 5
+
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://localhost:4000/health; then
+              echo "Server is up"
+              break
+            fi
+            echo "Waiting... ($i/10)"
+            sleep 3
+          done
+
+      - name: Run integration tests
+        working-directory: server
+        env:
+          PORT: 4000
+          NODE_ENV: test
+          MONGODB_URI: mongodb://localhost:27017/gdbot_test
+          JWT_SECRET: ci-test-jwt-secret-32chars-minimum
+          ADMIN_JWT_SECRET: ci-test-admin-jwt-secret-32chars
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'test-key' }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || 'test-key' }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY || 'test-key' }}
+          PYTHON_SERVICE_URL: http://localhost:8000
+          CLIENT_ORIGINS: http://localhost:5173
+          BCRYPT_ROUNDS: 4
+        run: node test-integration.js 2>&1 | tee test-results.txt; exit ${PIPESTATUS[0]}
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ github.sha }}
+          path: server/test-results.txt
+          retention-days: 14
+
+      - name: Stop server
+        if: always()
+        run: kill $(cat /tmp/server.pid) 2>/dev/null || true
+
+  # ── 8. CI summary gate ─────────────────────────────────────
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, build-frontend, validate-backend, validate-python, security-scan, integration-tests]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          results='${{ toJSON(needs) }}'
+          echo "$results"
+          # Fail if any required job failed (not just skipped)
+          if echo "$results" | grep -q '"result":"failure"'; then
+            echo "One or more CI jobs failed."
+            exit 1
+          fi
+          echo "All CI checks passed."

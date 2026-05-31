@@ -109,8 +109,10 @@ export type User = {
   name:      string;
   email:     string;
   plan:      "free" | "pro";
+  role?:     "user" | "admin";
   avatar:    string;
   createdAt: string;
+  isAdmin?:  boolean;
   preferences?: {
     micEnabled:        boolean;
     noiseSuppression:  boolean;
@@ -555,4 +557,55 @@ export const fluency = {
       auth:    false,
       timeout: 5_000,
     }),
+};
+
+// ── User Notifications ────────────────────────────────────────────────────────
+
+export type UserNotification = {
+  _id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: string;
+  isBanner: boolean;
+  isDismissible: boolean;
+  actionUrl: string;
+  actionLabel: string;
+  isRead: boolean;
+  isDismissed: boolean;
+  readAt: string | null;
+  deliveredAt: string | null;
+  sentAt: string | null;
+  createdAt: string;
+};
+
+export const notifications = {
+  list: (params: { page?: number; limit?: number; unread?: boolean } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.page)   qs.set("page",   String(params.page));
+    if (params.limit)  qs.set("limit",  String(params.limit));
+    if (params.unread) qs.set("unread", "true");
+    const q = qs.toString();
+    return apiFetch<{
+      success: boolean;
+      notifications: UserNotification[];
+      unreadCount: number;
+      pagination: { page: number; limit: number; total: number; pages: number };
+    }>(`/api/notifications${q ? `?${q}` : ""}`);
+  },
+
+  unreadCount: () =>
+    apiFetch<{ success: boolean; unreadCount: number }>("/api/notifications/unread-count"),
+
+  markRead: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/notifications/${id}/read`, { method: "POST" }),
+
+  markAllRead: () =>
+    apiFetch<{ success: boolean; count: number }>("/api/notifications/read-all", { method: "POST" }),
+
+  dismiss: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/notifications/${id}/dismiss`, { method: "POST" }),
+
+  clearAll: () =>
+    apiFetch<{ success: boolean }>("/api/notifications/clear", { method: "DELETE" }),
 };

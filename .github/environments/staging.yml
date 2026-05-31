@@ -1,0 +1,27 @@
+# ============================================================
+# GitHub Environment: staging
+# Configure at: Settings → Environments → staging
+# ============================================================
+#
+# Required Secrets:
+#   STAGING_HOST              — SSH hostname or IP
+#   STAGING_USER              — SSH username
+#   STAGING_SSH_KEY           — Private SSH key (PEM format)
+#   STAGING_SSH_PORT          — SSH port (default: 22)
+#   STAGING_MONGODB_URI       — MongoDB connection string
+#   STAGING_JWT_SECRET        — JWT signing secret (min 32 chars)
+#   STAGING_ADMIN_JWT_SECRET  — Admin JWT secret (min 32 chars)
+#   GEMINI_API_KEY            — Google Gemini API key
+#   GROQ_API_KEY              — Groq API key
+#   ELEVENLABS_API_KEY        — ElevenLabs API key (optional)
+#   SLACK_WEBHOOK_URL         — Slack incoming webhook (optional)
+#
+# Required Variables (non-secret):
+#   STAGING_URL               — e.g. https://staging.yourdomain.com
+#   STAGING_APP_DIR           — e.g. /opt/gdplatform
+#   STAGING_CLIENT_ORIGINS    — e.g. https://staging.yourdomain.com
+#
+# Protection Rules (recommended):
+#   - Required reviewers: 0 (auto-deploy on develop push)
+#   - Wait timer: 0 minutes
+#   - Deployment branches: develop only

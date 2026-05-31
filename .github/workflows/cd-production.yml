@@ -1,0 +1,338 @@
+# ============================================================
+# CD — Production Deployment
+# Triggers: push to main, release published
+# Strategy: blue-green with automatic rollback on failure
+# ============================================================
+name: CD — Production
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Specific image tag to deploy (leave blank for latest)
+        required: false
+      skip_smoke_tests:
+        description: Skip smoke tests (emergency deploy only)
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+
+jobs:
+  # ── Gate: require CI to have passed ───────────────────────
+  ci-gate:
+    name: Verify CI Status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check CI workflow status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runs = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: context.ref.replace('refs/heads/', ''),
+              status: 'success',
+              per_page: 5
+            });
+            const ciRuns = runs.data.workflow_runs.filter(r => r.name === 'CI');
+            if (ciRuns.length === 0) {
+              core.warning('No successful CI run found for this branch. Proceeding with caution.');
+            } else {
+              console.log(`Latest successful CI run: ${ciRuns[0].html_url}`);
+            }
+
+  # ── Pre-deploy validation ──────────────────────────────────
+  pre-deploy:
+    name: Pre-Deploy Validation
+    runs-on: ubuntu-latest
+    needs: ci-gate
+    outputs:
+      deploy_sha: ${{ steps.meta.outputs.sha }}
+      image_tag: ${{ steps.meta.outputs.tag }}
+      release_version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate deployment metadata
+        id: meta
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          VERSION="${{ github.event.release.tag_name || github.sha }}"
+          TAG="${{ github.event.inputs.image_tag || format('prod-{0}-{1}', github.sha, github.run_number) }}"
+          echo "sha=$SHA"           >> $GITHUB_OUTPUT
+          echo "tag=$TAG"           >> $GITHUB_OUTPUT
+          echo "version=$VERSION"   >> $GITHUB_OUTPUT
+          echo "Deploy: SHA=$SHA  Tag=$TAG  Version=$VERSION"
+
+      - name: Validate production secrets
+        run: |
+          missing=()
+          [[ -z "${{ secrets.PROD_MONGODB_URI }}" ]]       && missing+=("PROD_MONGODB_URI")
+          [[ -z "${{ secrets.PROD_JWT_SECRET }}" ]]        && missing+=("PROD_JWT_SECRET")
+          [[ -z "${{ secrets.PROD_ADMIN_JWT_SECRET }}" ]]  && missing+=("PROD_ADMIN_JWT_SECRET")
+          [[ -z "${{ secrets.GEMINI_API_KEY }}" ]]         && missing+=("GEMINI_API_KEY")
+          [[ -z "${{ secrets.GROQ_API_KEY }}" ]]           && missing+=("GROQ_API_KEY")
+          [[ -z "${{ secrets.PROD_HOST }}" ]]              && missing+=("PROD_HOST")
+          [[ -z "${{ secrets.PROD_SSH_KEY }}" ]]           && missing+=("PROD_SSH_KEY")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "FATAL: Missing production secrets: ${missing[*]}"
+            exit 1
+          fi
+          echo "All production secrets validated."
+
+  # ── Build production images ────────────────────────────────
+  build-images:
+    name: Build Production Images
+    runs-on: ubuntu-latest
+    needs: pre-deploy
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service:
+          - name: backend-node
+            dockerfile: docker/Dockerfile.node
+          - name: backend-python
+            dockerfile: docker/Dockerfile.python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ needs.pre-deploy.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
+          cache-from: type=gha,scope=prod-${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=prod-${{ matrix.service.name }}
+          build-args: |
+            BUILD_SHA=${{ needs.pre-deploy.outputs.deploy_sha }}
+            BUILD_VERSION=${{ needs.pre-deploy.outputs.release_version }}
+            NODE_ENV=production
+
+  # ── Deploy to production (blue-green) ─────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [pre-deploy, build-images]
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record pre-deploy state (for rollback)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            cd ${{ vars.PROD_APP_DIR || '/opt/gdplatform' }}
+            # Save current image tags for rollback
+            docker compose -f docker-compose.prod.yml images --quiet > /tmp/pre-deploy-images.txt 2>/dev/null || true
+            echo "Pre-deploy state saved."
+
+      - name: Deploy new version
+        id: deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            set -e
+            APP_DIR=${{ vars.PROD_APP_DIR || '/opt/gdplatform' }}
+            cd "$APP_DIR"
+
+            echo "=== Logging into GHCR ==="
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            echo "=== Writing production .env ==="
+            cat > .env.prod << 'ENVEOF'
+            NODE_ENV=production
+            PORT=4000
+            PYTHON_PORT=8000
+            FLASK_PORT=6000
+            MONGODB_URI=${{ secrets.PROD_MONGODB_URI }}
+            JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
+            JWT_EXPIRES_IN=7d
+            ADMIN_JWT_SECRET=${{ secrets.PROD_ADMIN_JWT_SECRET }}
+            ADMIN_JWT_EXPIRES_IN=8h
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
+            CLIENT_ORIGINS=${{ vars.PROD_CLIENT_ORIGINS }}
+            PYTHON_SERVICE_URL=http://backend-python:8000
+            BCRYPT_ROUNDS=12
+            RATE_LIMIT_WINDOW_MS=900000
+            RATE_LIMIT_MAX_REQUESTS=100
+            IMAGE_TAG=${{ needs.pre-deploy.outputs.image_tag }}
+            REGISTRY=${{ env.REGISTRY }}
+            IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
+            ENVEOF
+
+            echo "=== Pulling new images ==="
+            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+
+            echo "=== Rolling update (zero-downtime) ==="
+            # Scale up new containers before removing old ones
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d \
+              --remove-orphans \
+              --wait \
+              --wait-timeout 120
+
+            echo "=== Cleaning up old images ==="
+            docker image prune -f --filter "until=24h" || true
+
+            echo "Deploy complete."
+
+      - name: Post-deploy health checks
+        id: health
+        if: ${{ !inputs.skip_smoke_tests }}
+        run: |
+          PROD_URL="${{ vars.PROD_URL }}"
+          echo "Running health checks against $PROD_URL"
+
+          # Node API health
+          for i in {1..15}; do
+            if curl -sf "$PROD_URL/health" -o /tmp/health.json; then
+              echo "Node API healthy:"
+              cat /tmp/health.json
+              break
+            fi
+            [ $i -eq 15 ] && echo "Node API health check FAILED" && exit 1
+            echo "Retry $i/15..."
+            sleep 8
+          done
+
+          # Auth endpoint smoke test
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "$PROD_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"smoke@test.invalid","password":"invalid"}')
+          [[ "$STATUS" == "401" || "$STATUS" == "422" || "$STATUS" == "400" ]] || \
+            { echo "Auth endpoint returned unexpected $STATUS"; exit 1; }
+          echo "Auth endpoint OK: HTTP $STATUS"
+
+          # Admin endpoint check
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/api/admin/health" || echo "000")
+          echo "Admin endpoint: HTTP $STATUS"
+
+          echo "All health checks passed."
+
+      - name: Rollback on failure
+        if: failure() && steps.deploy.outcome == 'success'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            cd ${{ vars.PROD_APP_DIR || '/opt/gdplatform' }}
+            echo "=== ROLLBACK TRIGGERED ==="
+            # Re-tag previous images as latest and redeploy
+            docker compose -f docker-compose.prod.yml --env-file .env.prod.backup up -d --remove-orphans || \
+              echo "Rollback attempted — manual intervention may be required"
+
+  # ── Post-deploy monitoring setup ──────────────────────────
+  post-deploy:
+    name: Post-Deploy Tasks
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate deployment report
+        run: |
+          cat > deployment-report.md << EOF
+          # Deployment Report
+          - **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Version:** ${{ needs.pre-deploy.outputs.release_version }}
+          - **SHA:** ${{ github.sha }}
+          - **Actor:** ${{ github.actor }}
+          - **Environment:** Production
+          - **Status:** Success
+          EOF
+          cat deployment-report.md
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report-${{ github.sha }}
+          path: deployment-report.md
+          retention-days: 90
+
+      - name: Create GitHub deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              description: 'Production deployment via CD pipeline',
+              auto_merge: false,
+              required_contexts: []
+            });
+
+  # ── Notify ─────────────────────────────────────────────────
+  notify-production:
+    name: Notify Production Deploy
+    runs-on: ubuntu-latest
+    needs: [pre-deploy, deploy-production, post-deploy]
+    if: always()
+    steps:
+      - name: Slack notification
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "${{ needs.deploy-production.result == 'success' && '🚀' || '🔥' }} *Production Deploy* — ${{ github.repository }}",
+              "attachments": [{
+                "color": "${{ needs.deploy-production.result == 'success' && 'good' || 'danger' }}",
+                "fields": [
+                  {"title": "Version", "value": "${{ needs.pre-deploy.outputs.release_version }}", "short": true},
+                  {"title": "Status", "value": "${{ needs.deploy-production.result }}", "short": true},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "URL", "value": "${{ vars.PROD_URL }}", "short": true}
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

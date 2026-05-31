@@ -81,7 +81,11 @@ router.get("/me", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ success: false, message: "User not found." });
-    res.json({ success: true, user });
+
+    const userObj = user.toObject();
+    userObj.isAdmin = user.role === "admin";
+
+    res.json({ success: true, user: userObj });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch user." });
   }

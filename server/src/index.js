@@ -38,8 +38,13 @@ import chatRoutes               from "./routes/chat.js";
 import peerRatingRoutes         from "./routes/peerRatings.js";
 import aiSessionRoutes          from "./routes/aiSession.js";
 import { registerSocketHandlers } from "./socketHandler.js";
-import adminRoutes from "./routes/admin/index.js";
-import { metrics } from "./routes/admin/analytics.js";
+import adminRoutes              from "./routes/admin/index.js";
+import notificationRoutes       from "./routes/notifications.js";
+import { Notification }         from "./models/Notification.js";
+import { UserNotification }     from "./models/UserNotification.js";
+import { User as UserModel }    from "./models/User.js";
+import { metrics }              from "./routes/admin/analytics.js";
+import { apiKeyService }        from "./services/apiKeyService.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
@@ -183,20 +188,22 @@ app.use("/api/chat",        apiLimiter,  chatRoutes);
 app.use("/api/peer-ratings",apiLimiter,  peerRatingRoutes);
 app.use("/api/ai-session",  apiLimiter,  aiSessionRoutes);
 app.use("/api/admin",       apiLimiter,  adminRoutes);
+app.use("/api/notifications", apiLimiter, notificationRoutes);
 
 // ── ElevenLabs TTS proxy ──────────────────────────────────────────────────────
-// Keeps the ElevenLabs API key server-side; client calls /api/tts
+// Keeps the ElevenLabs API key server-side; client calls /api/tts.
+// Key is resolved dynamically from the DB (apiKeyService) with .env fallback.
 app.post("/api/tts", apiLimiter, async (req, res) => {
   const { text, voiceId } = req.body;
   if (!text) return res.status(400).json({ error: "text is required" });
 
-  const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY;
-  if (!ELEVEN_KEY) {
-    // Signal the client to use browser TTS instead
+  const keyInfo = await apiKeyService.getKey("elevenlabs").catch(() => null);
+  if (!keyInfo) {
     return res.status(200).json({ fallback: true, reason: "ElevenLabs API key not configured." });
   }
 
-  const vid = voiceId || process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL"; // default: Bella
+  const vid = voiceId || process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL";
+  const start = Date.now();
   try {
     const response = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${vid}`,
@@ -207,7 +214,7 @@ app.post("/api/tts", apiLimiter, async (req, res) => {
       },
       {
         headers: {
-          "xi-api-key": ELEVEN_KEY,
+          "xi-api-key": keyInfo.value,
           "Content-Type": "application/json",
           Accept: "audio/mpeg",
         },
@@ -215,10 +222,14 @@ app.post("/api/tts", apiLimiter, async (req, res) => {
         timeout: 30000,
       }
     );
+    await apiKeyService.reportSuccess("elevenlabs", keyInfo.id, { latency: Date.now() - start, endpoint: "tts" });
     res.set("Content-Type", "audio/mpeg");
     res.send(Buffer.from(response.data));
   } catch (err) {
     console.error("[tts]", err.message);
+    await apiKeyService.reportFailure("elevenlabs", keyInfo.id, {
+      error: err.message, endpoint: "tts",
+    });
     const status = err.response?.status ?? 502;
     res.status(status).json({ error: "TTS generation failed." });
   }
@@ -365,6 +376,68 @@ if (!IS_PROD) {
     if (count > 0) console.log(`[ws] Active connections: ${count}`);
   }, 60_000);
 }
+
+// ── Scheduled notification processor ─────────────────────────────────────────
+// Runs every 10 seconds to catch notifications whose scheduledAt time has passed.
+// Also runs once immediately on startup to catch any missed notifications.
+async function processScheduledNotifications() {
+  try {
+    const now = new Date();
+    const due = await Notification.find({ status: "scheduled", scheduledAt: { $lte: now } });
+    if (!due.length) return;
+
+    console.log(`[scheduler] Found ${due.length} due notification(s) at ${now.toISOString()}`);
+
+    for (const notif of due) {
+      // Mark as sent immediately to prevent double-delivery on concurrent runs
+      notif.status = "sent";
+      notif.sentAt = now;
+      await notif.save();
+
+      const userFilter =
+        notif.targetType === "plan"     && notif.targetPlan            ? { plan: notif.targetPlan } :
+        notif.targetType === "role"     && notif.targetRole            ? { role: notif.targetRole } :
+        notif.targetType === "specific" && notif.targetUsers?.length   ? { _id: { $in: notif.targetUsers } } :
+        {};
+
+      const users = await UserModel.find(userFilter).select("_id").lean();
+
+      if (users.length) {
+        const docs = users.map((u) => ({ userId: u._id, notificationId: notif._id, deliveredAt: now }));
+        await UserNotification.insertMany(docs, { ordered: false }).catch(() => {});
+
+        const payload = {
+          id: notif._id, title: notif.title, message: notif.message,
+          type: notif.type, priority: notif.priority,
+          isBanner: notif.isBanner, isDismissible: notif.isDismissible,
+          actionUrl: notif.actionUrl, actionLabel: notif.actionLabel, sentAt: now,
+        };
+
+        if (notif.targetType === "all") {
+          io.emit("notification", payload);
+        } else {
+          const userIds = new Set(users.map((u) => u._id.toString()));
+          for (const [, socket] of io.sockets.sockets) {
+            const uid = socket.data?.user?.id;
+            if (uid && userIds.has(uid)) socket.emit("notification", payload);
+          }
+        }
+      }
+
+      notif.sentCount = users.length;
+      await notif.save();
+
+      console.log(`[scheduler] ✓ Sent: "${notif.title}" (scheduledAt: ${notif.sentAt?.toISOString()}) → ${users.length} users`);
+    }
+  } catch (err) {
+    console.error("[scheduler] Error:", err.message);
+  }
+}
+
+// Run every 10 seconds
+setInterval(processScheduledNotifications, 10_000);
+// Also run once after DB connects (slight delay to ensure connection is ready)
+setTimeout(processScheduledNotifications, 3_000);
 
 // ── Start server ──────────────────────────────────────────────────────────────
 httpServer.listen(PORT, () => {

@@ -5,7 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 import {
   LayoutDashboard, Users, Shield, Bell, CreditCard,
   BarChart3, FileText, Settings, LogOut, Menu, X,
-  ChevronRight, Activity, UserCog, Mic, Sun, Moon,
+  ChevronRight, Activity, UserCog, Mic, Sun, Moon, KeyRound,
 } from "lucide-react";
 
 type NavItem = {
@@ -26,6 +26,7 @@ const NAV: NavItem[] = [
   { title: "Audit Logs",    icon: FileText,        href: "/admin/audit" },
   { title: "System",        icon: Settings,        href: "/admin/system" },
   { title: "Admins",        icon: UserCog,         href: "/admin/admins" },
+  { title: "API Keys",      icon: KeyRound,        href: "/admin/api-keys" },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

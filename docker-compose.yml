@@ -1,0 +1,84 @@
+# ============================================================
+# docker-compose.yml — Local development
+# ============================================================
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend-node:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file: server/.env
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/gdbot
+      - PYTHON_SERVICE_URL=http://backend-python:8000
+      - NODE_ENV=development
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend-python:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "6000:6000"
+    env_file: server/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - python-temp:/app/temp
+      - python-sessions:/app/sessions
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 15s
+      start_period: 60s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        - VITE_API_URL=http://localhost:4000
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-node
+
+volumes:
+  mongo-data:
+  uploads:
+  python-temp:
+  python-sessions:
+
+networks:
+  default:
+    name: gdplatform-network

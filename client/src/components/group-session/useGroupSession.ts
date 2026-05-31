@@ -91,8 +91,15 @@ export function useGroupSession(sessionId: string, userId?: string) {
   // setRemoteDescription completed.
   const icePendingRef   = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
+  // Stable ref to the local socket ID — set once connected, used to guard
+  // against adding ourselves as a remote participant.
+  const localSocketIdRef = useRef<string | null>(null);
+
   const upsertParticipant = useCallback((patch: Partial<Participant> & { id: string }) => {
     setParticipants(prev => {
+      // Never add the local socket as a remote participant tile.
+      if (!patch.isLocal && patch.id === localSocketIdRef.current) return prev;
+
       // First check: does an entry with this socketId already exist?
       const bySocketId = prev.findIndex(p => p.id === patch.id);
 
@@ -298,6 +305,7 @@ export function useGroupSession(sessionId: string, userId?: string) {
 
     socket.on("connect", () => {
       if (isStale()) return;
+      localSocketIdRef.current = socket.id;
       console.log("[WebRTC] Socket connected:", socket.id);
     });
 
@@ -405,8 +413,10 @@ export function useGroupSession(sessionId: string, userId?: string) {
 
       // Deduplicate peers by userId before processing — the server already
       // deduplicates, but be defensive on the client side too.
+      // Also filter out our own socket (shouldn't be in peers, but guard anyway).
       const seenUserIds = new Set<string>();
       const dedupedPeers = peers.filter(p => {
+        if (p.socketId === socket.id) return false; // never connect to self
         if (!p.userId) return true;
         if (seenUserIds.has(p.userId)) return false;
         seenUserIds.add(p.userId);
@@ -433,21 +443,28 @@ export function useGroupSession(sessionId: string, userId?: string) {
       participant: { socketId: string; name: string; audioEnabled: boolean; videoEnabled: boolean; userId?: string };
     }) => {
       if (isStale()) return;
+      // Guard: never add ourselves as a remote participant
+      if (participant.socketId === socket.id) return;
       console.log(`[WebRTC] New peer joined: ${participant.name} (${participant.socketId})`);
       upsertParticipant({
         id: participant.socketId, userId: participant.userId,
         name: participant.name, stream: null,
         audioEnabled: participant.audioEnabled, videoEnabled: participant.videoEnabled,
       });
-      createPeer(participant.socketId, false, socket);
+      // Only create a new peer connection if one doesn't already exist
+      if (!peersRef.current.has(participant.socketId)) {
+        createPeer(participant.socketId, false, socket);
+      }
     });
 
-    socket.on("peer-left", ({ socketId }: { socketId: string }) => {
+    socket.on("peer-left", ({ socketId, reason }: { socketId: string; reason?: string }) => {
       if (isStale()) return;
-      console.log(`[WebRTC] Peer left: ${socketId}`);
+      console.log(`[WebRTC] Peer left: ${socketId}${reason ? ` (${reason})` : ""}`);
+      // Close and remove the peer connection
       peersRef.current.get(socketId)?.close();
       peersRef.current.delete(socketId);
       icePendingRef.current.delete(socketId);
+      // Remove from participant list
       removeParticipantById(socketId);
     });
 
@@ -456,6 +473,25 @@ export function useGroupSession(sessionId: string, userId?: string) {
     }) => {
       if (isStale()) return;
       console.log(`[WebRTC] Room roster update: ${roster.length} participants`);
+
+      // Build the set of active remote socketIds from the authoritative roster.
+      // Filter out our own socket so we never render ourselves as a remote tile.
+      const activeSocketIds = new Set(
+        roster
+          .map(p => p.socketId)
+          .filter(id => id !== socket.id)
+      );
+
+      // Close and remove peer connections for anyone no longer in the roster.
+      peersRef.current.forEach((pc, remoteSocketId) => {
+        if (!activeSocketIds.has(remoteSocketId)) {
+          console.log(`[WebRTC] Roster cleanup: closing stale peer ${remoteSocketId}`);
+          pc.close();
+          peersRef.current.delete(remoteSocketId);
+          icePendingRef.current.delete(remoteSocketId);
+        }
+      });
+
       // Rebuild the participant list from the authoritative server roster.
       // Keep the local participant (never in the roster) and merge in remotes.
       // Deduplicate by userId: if the same userId appears twice (shouldn't
@@ -468,8 +504,10 @@ export function useGroupSession(sessionId: string, userId?: string) {
         const existingById = new Map(prev.filter(p => !p.isLocal).map(p => [p.id, p]));
 
         // Deduplicate roster by userId (last entry wins — server sends newest first)
+        // Also exclude our own socket from the remote list.
         const seenUserIds = new Set<string>();
         const dedupedRoster = roster.filter(p => {
+          if (p.socketId === socket.id) return false; // never show self as remote
           if (!p.userId) return true; // guests always included
           if (seenUserIds.has(p.userId)) return false;
           seenUserIds.add(p.userId);

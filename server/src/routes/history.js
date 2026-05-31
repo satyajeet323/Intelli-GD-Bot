@@ -312,7 +312,25 @@ router.get(
 
       // Status filter
       const statusParam = req.query.status ?? "ended";
-      if (statusParam !== "all") filter.status = statusParam;
+      if (statusParam !== "all") {
+        if (statusParam === "ended") {
+          // Also include individual sessions that have a report but are stuck
+          // in "waiting" status (created before auto-end was implemented).
+          filter.$and = [
+            {
+              $or: [
+                { status: "ended" },
+                {
+                  type: "individual",
+                  "participants.report.turns": { $gt: 0 },
+                },
+              ],
+            },
+          ];
+        } else {
+          filter.status = statusParam;
+        }
+      }
 
       // Type filter
       if (req.query.type && req.query.type !== "all") {

@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 6 },
     avatar:   { type: String, default: "" },
     plan:     { type: String, enum: ["free", "pro", "enterprise"], default: "free" },
+    role:     { type: String, enum: ["user", "admin"], default: "user" },
     isSuspended:   { type: Boolean, default: false },
     suspendedAt:   { type: Date, default: null },
     suspendReason: { type: String, default: "" },

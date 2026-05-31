@@ -1,0 +1,28 @@
+# ============================================================
+# GitHub Environment: production
+# Configure at: Settings → Environments → production
+# ============================================================
+#
+# Required Secrets:
+#   PROD_HOST                 — SSH hostname or IP
+#   PROD_USER                 — SSH username
+#   PROD_SSH_KEY              — Private SSH key (PEM format)
+#   PROD_SSH_PORT             — SSH port (default: 22)
+#   PROD_MONGODB_URI          — MongoDB Atlas or self-hosted URI
+#   PROD_JWT_SECRET           — JWT signing secret (min 64 chars for prod)
+#   PROD_ADMIN_JWT_SECRET     — Admin JWT secret (min 64 chars for prod)
+#   GEMINI_API_KEY            — Google Gemini API key
+#   GROQ_API_KEY              — Groq API key
+#   ELEVENLABS_API_KEY        — ElevenLabs API key
+#   SLACK_WEBHOOK_URL         — Slack incoming webhook
+#
+# Required Variables (non-secret):
+#   PROD_URL                  — e.g. https://yourdomain.com
+#   PROD_APP_DIR              — e.g. /opt/gdplatform
+#   PROD_CLIENT_ORIGINS       — e.g. https://yourdomain.com,https://www.yourdomain.com
+#
+# Protection Rules (REQUIRED for production):
+#   - Required reviewers: 1+ (manual approval gate)
+#   - Wait timer: 5 minutes (allows cancellation)
+#   - Deployment branches: main only
+#   - Prevent self-review: enabled

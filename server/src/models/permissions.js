@@ -19,4 +19,5 @@ export const PERMISSIONS = [
   "support.view", "support.manage",
   "featureFlags.view", "featureFlags.manage",
   "rateLimit.view", "rateLimit.manage",
+  "apiKeys.view", "apiKeys.manage",
 ];
