@@ -13,6 +13,7 @@ import adminAnalyticsRoutes from "./analytics.js";
 import adminAuditRoutes   from "./audit.js";
 import adminSystemRoutes  from "./system.js";
 import adminAdminsRoutes  from "./admins.js";
+import adminApiKeysRoutes from "./apiKeys.js";
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use("/analytics",     adminAnalyticsRoutes);
 router.use("/audit",         adminAuditRoutes);
 router.use("/system",        adminSystemRoutes);
 router.use("/admins",        adminAdminsRoutes);
+router.use("/api-keys",      adminApiKeysRoutes);
 
 export default router;

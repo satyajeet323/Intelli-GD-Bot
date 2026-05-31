@@ -6,7 +6,7 @@ type Theme = "dark" | "light";
 let _theme: Theme = (() => {
   if (typeof window === "undefined") return "dark";
   const stored = localStorage.getItem("gd-theme") as Theme | null;
-  return stored === "light" || stored === "dark" ? stored : "dark";
+  return stored === "light" || stored === "dark" ? stored : "light";
 })();
 
 let _listeners: Array<(t: Theme) => void> = [];

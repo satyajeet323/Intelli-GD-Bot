@@ -103,6 +103,22 @@ router.post(
 
       await session.save();
 
+      // Auto-end individual sessions when a report is submitted — this ensures
+      // they always appear in history (which filters by status: "ended").
+      if (session.type === "individual" && session.status !== "ended") {
+        session.status  = "ended";
+        session.endedAt = new Date();
+        session.duration = Math.round((session.endedAt - session.startedAt) / 1000);
+        // Mark the participant as no longer active
+        const p = session.participants[participantIdx];
+        if (p && p.isActive) {
+          p.isActive = false;
+          p.leftAt   = session.endedAt;
+        }
+        await session.save();
+        console.log(`[reports] Auto-ended individual session ${sessionId}`);
+      }
+
       console.log(
         `[reports] Saved: ${req.user.email} | session: ${sessionId} | score: ${overallScore}`
       );

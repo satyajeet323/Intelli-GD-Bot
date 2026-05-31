@@ -156,12 +156,20 @@ export type Notification = {
   priority: string;
   targetType: string;
   targetPlan: string;
+  targetRole: string;
   status: string;
   scheduledAt: string | null;
+  expiresAt: string | null;
   sentAt: string | null;
   sentCount: number;
+  readCount: number;
   isBanner: boolean;
+  isDismissible: boolean;
+  actionUrl: string;
+  actionLabel: string;
+  createdBy: { name: string; email: string } | null;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type AuditEntry = {
@@ -263,12 +271,22 @@ export const adminNotifications = {
       `/api/admin/notifications${qs ? `?${qs}` : ""}`
     );
   },
+  stats: () =>
+    adminFetch<{ success: boolean; stats: Record<string, unknown> }>("/api/admin/notifications/stats"),
+  analytics: (id: string) =>
+    adminFetch<{ success: boolean; analytics: { delivered: number; read: number; dismissed: number; readRate: number; dismissRate: number } }>(
+      `/api/admin/notifications/${id}/analytics`
+    ),
   create: (data: Partial<Notification>) =>
     adminFetch<{ success: boolean; notification: Notification }>("/api/admin/notifications", { method: "POST", body: data }),
   update: (id: string, data: Partial<Notification>) =>
     adminFetch<{ success: boolean; notification: Notification }>(`/api/admin/notifications/${id}`, { method: "PATCH", body: data }),
   send: (id: string) =>
     adminFetch<{ success: boolean; notification: Notification; sentCount: number }>(`/api/admin/notifications/${id}/send`, { method: "POST" }),
+  activate: (id: string) =>
+    adminFetch<{ success: boolean; notification: Notification }>(`/api/admin/notifications/${id}/activate`, { method: "POST" }),
+  deactivate: (id: string) =>
+    adminFetch<{ success: boolean; notification: Notification }>(`/api/admin/notifications/${id}/deactivate`, { method: "POST" }),
   delete: (id: string) =>
     adminFetch<{ success: boolean; message: string }>(`/api/admin/notifications/${id}`, { method: "DELETE" }),
 };
@@ -309,4 +327,99 @@ export const adminAdmins = {
     adminFetch<{ success: boolean; admin: AdminUser }>(`/api/admin/admins/${id}`, { method: "PATCH", body: data }),
   delete: (id: string) =>
     adminFetch<{ success: boolean; message: string }>(`/api/admin/admins/${id}`, { method: "DELETE" }),
+};
+
+// ── API Key Management types ───────────────────────────────────────────────────
+
+export type ApiKeyStatus =
+  | "active" | "in_use" | "standby" | "rate_limited"
+  | "exhausted" | "expired" | "deactivated";
+
+export type ApiKeyEntry = {
+  _id: string;
+  provider: string;
+  label: string;
+  description: string;
+  maskedKey: string;
+  status: ApiKeyStatus;
+  priority: number;
+  dailyLimit: number;
+  monthlyLimit: number;
+  dailyUsage: number;
+  monthlyUsage: number;
+  consecutiveFailures: number;
+  maxConsecutiveFailures: number;
+  totalRequests: number;
+  totalSuccess: number;
+  totalFailures: number;
+  successRate: number;
+  lastUsedAt: string | null;
+  lastErrorAt: string | null;
+  lastError: string;
+  expiresAt: string | null;
+  rotatedAt: string | null;
+  tags: string[];
+  createdBy: { name: string; email: string } | null;
+  updatedBy: { name: string; email: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  recentLogs: Array<{
+    ts: string;
+    success: boolean;
+    latency: number;
+    error: string;
+    endpoint: string;
+  }>;
+};
+
+export type ApiKeyProviderSummary = {
+  _id: string;
+  total: number;
+  active: number;
+  in_use: number;
+  standby: number;
+  exhausted: number;
+  deactivated: number;
+  totalRequests: number;
+  totalSuccess: number;
+  totalFailures: number;
+  lastUsedAt: string | null;
+};
+
+export const adminApiKeys = {
+  providers: () =>
+    adminFetch<{ success: boolean; providers: ApiKeyProviderSummary[] }>("/api/admin/api-keys"),
+
+  list: (provider: string) =>
+    adminFetch<{ success: boolean; keys: ApiKeyEntry[] }>(`/api/admin/api-keys/provider/${provider}`),
+
+  create: (data: {
+    provider: string; label: string; keyValue: string;
+    description?: string; priority?: number;
+    dailyLimit?: number; monthlyLimit?: number;
+    maxConsecutiveFailures?: number; expiresAt?: string; tags?: string[];
+  }) => adminFetch<{ success: boolean; key: ApiKeyEntry }>("/api/admin/api-keys", { method: "POST", body: data }),
+
+  update: (id: string, data: Partial<ApiKeyEntry>) =>
+    adminFetch<{ success: boolean; key: ApiKeyEntry }>(`/api/admin/api-keys/${id}`, { method: "PATCH", body: data }),
+
+  rotate: (id: string, newKeyValue: string) =>
+    adminFetch<{ success: boolean; key: ApiKeyEntry }>(`/api/admin/api-keys/${id}/rotate`, {
+      method: "POST", body: { newKeyValue },
+    }),
+
+  activate: (id: string) =>
+    adminFetch<{ success: boolean; key: ApiKeyEntry }>(`/api/admin/api-keys/${id}/activate`, { method: "POST" }),
+
+  deactivate: (id: string) =>
+    adminFetch<{ success: boolean; key: ApiKeyEntry }>(`/api/admin/api-keys/${id}/deactivate`, { method: "POST" }),
+
+  resetUsage: (id: string) =>
+    adminFetch<{ success: boolean; key: ApiKeyEntry }>(`/api/admin/api-keys/${id}/reset-usage`, { method: "POST" }),
+
+  reveal: (id: string) =>
+    adminFetch<{ success: boolean; value: string }>(`/api/admin/api-keys/${id}/reveal`),
+
+  delete: (id: string) =>
+    adminFetch<{ success: boolean; message: string }>(`/api/admin/api-keys/${id}`, { method: "DELETE" }),
 };

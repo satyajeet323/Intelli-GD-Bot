@@ -420,7 +420,7 @@ router.post("/:id/leave", requireAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/sessions/:id/end — End a session (host only) ───────────────────
+// ── POST /api/sessions/:id/end — End a session (host or self for individual) ──
 router.post("/:id/end", requireAuth, async (req, res) => {
   try {
     const sessionId = req.params.id.toUpperCase();
@@ -430,7 +430,15 @@ router.post("/:id/end", requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: "Session not found." });
     }
 
-    if (session.hostId.toString() !== req.user.id) {
+    // Individual sessions can be ended by the participant themselves.
+    // Group sessions can only be ended by the host.
+    const isHost = session.hostId.toString() === req.user.id;
+    const isParticipant = session.participants.some(
+      (p) => p.userId?.toString() === req.user.id
+    );
+    const canEnd = isHost || (session.type === "individual" && isParticipant);
+
+    if (!canEnd) {
       return res.status(403).json({
         success: false,
         message: "Only the session host can end the session.",

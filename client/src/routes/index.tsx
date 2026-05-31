@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Mic, BarChart3, Users, ArrowRight, Zap, Trophy,
   MessageSquare, Activity, Cpu, Radio, Terminal, Sun, Moon,
+  AudioLines, BrainCircuit, FileText,
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -460,6 +461,116 @@ function Landing() {
         </div>
       </section>
 
+      {/* ── AI Pipeline ─────────────────────────────────────────────── */}
+      <section
+        className="px-6 sm:px-10 py-16"
+        style={{ background: "var(--ib-bg)", borderBottom: "1px solid var(--ib-bdr)" }}
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="ib-label mb-3">Under the Hood</div>
+            <h2 className="font-display text-4xl sm:text-5xl" style={{ color: "var(--ib-fg)" }}>
+              Real AI, not<br /><span className="gradient-text">smoke & mirrors</span>
+            </h2>
+            <p className="mt-4 text-sm max-w-lg mx-auto" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300, lineHeight: 1.7 }}>
+              Every word you speak passes through a multi-stage ML pipeline — from raw audio to a detailed performance report in under 200 ms.
+            </p>
+          </div>
+
+          {/* Pipeline flow */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-0">
+            {[
+              {
+                step: "01",
+                icon: AudioLines,
+                label: "Audio Capture",
+                tech: "WebRTC + MediaRecorder",
+                desc: "Browser captures your mic stream in real time. Chunks are sent to the server every few seconds.",
+                color: "var(--ib-amber)",
+              },
+              {
+                step: "02",
+                icon: Mic,
+                label: "Transcription",
+                tech: "OpenAI Whisper",
+                desc: "Whisper converts speech to text with high accuracy across accents and speaking speeds.",
+                color: "var(--ib-gold)",
+              },
+              {
+                step: "03",
+                icon: BrainCircuit,
+                label: "Filler Detection",
+                tech: "CRNN Model",
+                desc: "A custom Convolutional-Recurrent Neural Network detects filler words (um, uh, like) directly from audio spectrograms.",
+                color: "var(--ib-purple)",
+              },
+              {
+                step: "04",
+                icon: FileText,
+                label: "Scoring & Report",
+                tech: "Gemini AI",
+                desc: "Gemini evaluates fluency, relevance, grammar, confidence, and 9 more metrics — then writes your personalised feedback.",
+                color: "var(--ib-ok)",
+              },
+            ].map((p, i, arr) => (
+              <div key={p.step} className="relative flex flex-col" style={{ background: "var(--ib-card)", border: `1px solid var(--ib-bdr)`, borderTop: `2px solid ${p.color}`, marginLeft: i > 0 ? "-1px" : 0 }}>
+                {/* Connector arrow — hidden on last */}
+                {i < arr.length - 1 && (
+                  <div
+                    className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 h-6 w-6 items-center justify-center"
+                    style={{ background: "var(--ib-bg)", border: "1px solid var(--ib-bdr)", color: "var(--ib-amber)" }}
+                  >
+                    <ArrowRight className="h-3 w-3" />
+                  </div>
+                )}
+                <div className="p-6 flex flex-col gap-3 h-full">
+                  <div className="flex items-center justify-between">
+                    <div
+                      className="h-9 w-9 flex items-center justify-center shrink-0"
+                      style={{ background: `color-mix(in srgb, ${p.color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${p.color} 30%, transparent)` }}
+                    >
+                      <p.icon className="h-4 w-4" style={{ color: p.color }} />
+                    </div>
+                    <span className="font-display text-3xl" style={{ color: "var(--ib-bdr)" }}>{p.step}</span>
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg mb-0.5" style={{ color: "var(--ib-fg)" }}>{p.label}</h3>
+                    <span
+                      style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: p.color, background: `color-mix(in srgb, ${p.color} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${p.color} 25%, transparent)`, padding: "0.15rem 0.45rem", display: "inline-block", marginBottom: "0.5rem" }}
+                    >
+                      {p.tech}
+                    </span>
+                    <p className="text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300, lineHeight: 1.6 }}>
+                      {p.desc}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom stat strip */}
+          <div
+            className="mt-6 grid grid-cols-2 sm:grid-cols-4 divide-x"
+            style={{ background: "var(--ib-surf)", border: "1px solid var(--ib-bdr)", borderColor: "var(--ib-bdr)" }}
+          >
+            {[
+              { val: "Whisper",  lbl: "Transcription engine" },
+              { val: "CRNN",     lbl: "Filler word model" },
+              { val: "Gemini",   lbl: "Scoring & feedback" },
+              { val: "< 200ms", lbl: "End-to-end latency" },
+            ].map((s) => (
+              <div key={s.lbl} className="px-5 py-4 text-center" style={{ borderColor: "var(--ib-bdr)" }}>
+                <div className="font-display text-xl gradient-text">{s.val}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ib-muted)", marginTop: "2px" }}>
+                  {s.lbl}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ─────────────────────────────────────────────────────────── */}
       <section
         className="relative overflow-hidden scanlines px-6 sm:px-10 py-20 text-center"
@@ -485,7 +596,7 @@ function Landing() {
 
         {/* Main footer body */}
         <div className="px-6 sm:px-10 py-14 max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
 
             {/* Brand column */}
             <div className="lg:col-span-1">
@@ -565,7 +676,6 @@ function Landing() {
                   { label: "Sign in",         to: "/login"    },
                   { label: "Create account",  to: "/register" },
                   { label: "Profile",         to: "/profile"  },
-                  { label: "Admin Panel",     to: "/admin/login" },
                 ].map((l) => (
                   <li key={l.label}>
                     <Link
@@ -593,6 +703,80 @@ function Landing() {
                   </li>
                 ))}
               </ul>
+            </div>
+
+            {/* ── Sitemap column ── */}
+            <div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--ib-amber)", marginBottom: "1rem" }}>
+                Sitemap
+              </div>
+
+              {/* Public */}
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)", marginBottom: "0.5rem" }}>
+                Public
+              </div>
+              <ul className="space-y-2 mb-4">
+                {[
+                  { label: "Home",           to: "/"         },
+                  { label: "Sign in",        to: "/login"    },
+                  { label: "Register",       to: "/register" },
+                ].map((l) => (
+                  <li key={l.label} className="flex items-center gap-1.5">
+                    <span style={{ color: "var(--ib-bdr)", fontSize: "0.5rem" }}>▸</span>
+                    <Link
+                      to={l.to as never}
+                      className="transition-colors"
+                      style={{ fontFamily: "'DM Sans',sans-serif", fontSize: "0.8rem", fontWeight: 300, color: "var(--ib-mut2)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ib-amber)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ib-mut2)")}
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* App */}
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.5rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--ib-muted)", marginBottom: "0.5rem" }}>
+                App
+              </div>
+              <ul className="space-y-2 mb-4">
+                {[
+                  { label: "Dashboard",      to: "/dashboard"     },
+                  { label: "AI Session",     to: "/ai-session"    },
+                  { label: "Group Session",  to: "/group-session" },
+                  { label: "Fluency Coach",  to: "/gd/new"        },
+                  { label: "History",        to: "/history"       },
+                  { label: "Profile",        to: "/profile"       },
+                ].map((l) => (
+                  <li key={l.label} className="flex items-center gap-1.5">
+                    <span style={{ color: "var(--ib-bdr)", fontSize: "0.5rem" }}>▸</span>
+                    <Link
+                      to={l.to as never}
+                      className="transition-colors"
+                      style={{ fontFamily: "'DM Sans',sans-serif", fontSize: "0.8rem", fontWeight: 300, color: "var(--ib-mut2)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ib-amber)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ib-mut2)")}
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* XML sitemap link */}
+              <a
+                href="/sitemap.xml"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 transition-colors"
+                style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)", borderTop: "1px solid var(--ib-bdr)", paddingTop: "0.75rem", display: "flex", marginTop: "0.25rem" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ib-amber)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ib-muted)")}
+              >
+                <FileText className="h-3 w-3 shrink-0" />
+                sitemap.xml
+              </a>
             </div>
 
             {/* CTA / newsletter column */}
@@ -659,6 +843,17 @@ function Landing() {
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
               Built with React 19 + FastAPI + WebRTC
             </span>
+            <span style={{ color: "var(--ib-bdr)" }}>|</span>
+            <a
+              href="/sitemap.xml"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ib-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ib-amber)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ib-muted)")}
+            >
+              Sitemap
+            </a>
           </div>
 
           {/* Live system status strip */}

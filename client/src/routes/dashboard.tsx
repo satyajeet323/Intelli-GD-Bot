@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
-import { TrendingUp, Mic, Trophy, Flame, ArrowUpRight, Play, Users, Target, Zap } from "lucide-react";
+import { TrendingUp, Mic, Trophy, Flame, ArrowUpRight, Play, Users, Target, Zap, ShieldCheck } from "lucide-react";
 import { history, type HistoryEntry } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { usePageFocus } from "@/hooks/usePageFocus";
@@ -209,6 +209,11 @@ function Dashboard() {
               <Link to="/group-session" className="btn-ghost inline-flex items-center gap-2">
                 <Users className="h-4 w-4" /> Group Session
               </Link>
+              {user?.isAdmin && (
+                <Link to="/admin/sessions" className="btn-ghost inline-flex items-center gap-2" style={{ borderColor: "var(--ib-amber)", color: "var(--ib-amber)" }}>
+                  <ShieldCheck className="h-4 w-4" /> Admin Panel
+                </Link>
+              )}
             </div>
           </div>
         </section>

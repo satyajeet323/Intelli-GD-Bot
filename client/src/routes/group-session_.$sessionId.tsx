@@ -186,6 +186,22 @@ function GroupSessionRoom() {
     setTimeout(() => setCopiedId(false), 2000);
   };
 
+  // Deduplicate participants before rendering — last entry wins for same userId.
+  // This is a final safety net; the hook already deduplicates, but this prevents
+  // any race condition from showing duplicate tiles.
+  const uniqueParticipants = (() => {
+    const seenIds = new Set<string>();
+    const seenUserIds = new Set<string>();
+    return participants.filter(p => {
+      const uid = p.userId ?? p.id;
+      if (seenUserIds.has(uid)) return false;
+      if (seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
+      seenUserIds.add(uid);
+      return true;
+    });
+  })();
+
   const sidebarOpen = chatOpen || aiOpen;
 
   return (
@@ -279,43 +295,43 @@ function GroupSessionRoom() {
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
             <div
               className={`h-full grid gap-2 sm:gap-3 auto-rows-fr ${
-                participants.length === 1
+                uniqueParticipants.length === 1
                   ? "grid-cols-1"
-                  : participants.length === 2
+                  : uniqueParticipants.length === 2
                   ? "grid-cols-1 sm:grid-cols-2"
-                  : participants.length === 3
+                  : uniqueParticipants.length === 3
                   ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                  : participants.length === 4
+                  : uniqueParticipants.length === 4
                   ? "grid-cols-2"
-                  : participants.length <= 6
+                  : uniqueParticipants.length <= 6
                   ? "grid-cols-2 lg:grid-cols-3"
-                  : participants.length <= 9
+                  : uniqueParticipants.length <= 9
                   ? "grid-cols-2 sm:grid-cols-3"
-                  : participants.length <= 12
+                  : uniqueParticipants.length <= 12
                   ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
                   : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
               }`}
               style={{
-                gridAutoRows: participants.length === 1 
+                gridAutoRows: uniqueParticipants.length === 1 
                   ? "100%" 
-                  : participants.length === 2 
+                  : uniqueParticipants.length === 2 
                   ? "100%" 
-                  : participants.length <= 4 
+                  : uniqueParticipants.length <= 4 
                   ? "minmax(0, 1fr)" 
                   : "minmax(200px, 1fr)"
               }}
             >
-              {participants.map((p) => (
+              {uniqueParticipants.map((p) => (
                 <div
                   key={p.id}
                   className={`min-h-0 ${
-                    participants.length === 1 ? "h-full" : ""
+                    uniqueParticipants.length === 1 ? "h-full" : ""
                   }`}
                 >
                   <ParticipantTile
                     participant={p}
                     isActive={p.id === activeSpeakerId}
-                    size={participants.length === 1 ? "lg" : participants.length <= 4 ? "md" : "sm"}
+                    size={uniqueParticipants.length === 1 ? "lg" : uniqueParticipants.length <= 4 ? "md" : "sm"}
                     onClick={() => {
                       // Optional: implement spotlight/pin feature
                       if (pinnedId === p.id) {
@@ -382,7 +398,7 @@ function GroupSessionRoom() {
         audioEnabled={audioEnabled}
         videoEnabled={videoEnabled}
         screenSharing={screenSharing}
-        participantCount={participants.length}
+      participantCount={uniqueParticipants.length}
         status={status}
         chatOpen={chatOpen}
         aiOpen={aiOpen}

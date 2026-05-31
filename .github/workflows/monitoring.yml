@@ -1,0 +1,158 @@
+# ============================================================
+# Monitoring — Scheduled health checks & performance probes
+# Runs every 15 minutes against staging and production
+# ============================================================
+name: Monitoring
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to check
+        type: choice
+        options: [all, staging, production]
+        default: all
+
+jobs:
+  # ── Staging health ─────────────────────────────────────────
+  health-staging:
+    name: Staging Health Check
+    runs-on: ubuntu-latest
+    if: ${{ inputs.environment == 'all' || inputs.environment == 'staging' || github.event_name == 'schedule' }}
+    continue-on-error: true
+    steps:
+      - name: API health check
+        id: api
+        run: |
+          STAGING_URL="${{ vars.STAGING_URL }}"
+          if [ -z "$STAGING_URL" ]; then
+            echo "STAGING_URL not configured, skipping."
+            exit 0
+          fi
+          RESPONSE=$(curl -sf --max-time 10 "$STAGING_URL/health" || echo "FAILED")
+          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+          if [ "$RESPONSE" = "FAILED" ]; then
+            echo "Staging API health check FAILED"
+            exit 1
+          fi
+          echo "Staging API healthy: $RESPONSE"
+
+      - name: WebSocket connectivity check
+        run: |
+          STAGING_URL="${{ vars.STAGING_URL }}"
+          [ -z "$STAGING_URL" ] && exit 0
+          # Check socket.io endpoint responds
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$STAGING_URL/socket.io/?EIO=4&transport=polling" || echo "000")
+          echo "Socket.io endpoint: HTTP $STATUS"
+          [[ "$STATUS" == "200" || "$STATUS" == "400" ]] || echo "Warning: unexpected socket.io status $STATUS"
+
+      - name: MongoDB connectivity (via health endpoint)
+        run: |
+          STAGING_URL="${{ vars.STAGING_URL }}"
+          [ -z "$STAGING_URL" ] && exit 0
+          HEALTH=$(curl -sf --max-time 10 "$STAGING_URL/health" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('mongodb','unknown'))" 2>/dev/null || echo "unknown")
+          echo "MongoDB status: $HEALTH"
+
+      - name: Alert on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        with:
+          payload: |
+            {
+              "text": "🚨 *Staging Health Check FAILED* — ${{ vars.STAGING_URL }}",
+              "attachments": [{"color": "danger", "text": "Automated health check failed. Please investigate."}]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  # ── Production health ──────────────────────────────────────
+  health-production:
+    name: Production Health Check
+    runs-on: ubuntu-latest
+    if: ${{ inputs.environment == 'all' || inputs.environment == 'production' || github.event_name == 'schedule' }}
+    continue-on-error: true
+    steps:
+      - name: API health check
+        id: api
+        run: |
+          PROD_URL="${{ vars.PROD_URL }}"
+          if [ -z "$PROD_URL" ]; then
+            echo "PROD_URL not configured, skipping."
+            exit 0
+          fi
+          RESPONSE=$(curl -sf --max-time 10 "$PROD_URL/health" || echo "FAILED")
+          if [ "$RESPONSE" = "FAILED" ]; then
+            echo "Production API health check FAILED"
+            exit 1
+          fi
+          echo "Production API healthy"
+
+      - name: Response time check
+        run: |
+          PROD_URL="${{ vars.PROD_URL }}"
+          [ -z "$PROD_URL" ] && exit 0
+          TIME=$(curl -sf --max-time 10 -w "%{time_total}" -o /dev/null "$PROD_URL/health" || echo "timeout")
+          echo "Response time: ${TIME}s"
+          # Warn if > 2 seconds
+          python3 -c "
+          t = '$TIME'
+          if t == 'timeout':
+              print('WARNING: Request timed out')
+          elif float(t) > 2.0:
+              print(f'WARNING: Slow response {t}s (threshold: 2s)')
+          else:
+              print(f'OK: Response time {t}s')
+          "
+
+      - name: Auth endpoint check
+        run: |
+          PROD_URL="${{ vars.PROD_URL }}"
+          [ -z "$PROD_URL" ] && exit 0
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            -X POST "$PROD_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"monitor@check.invalid","password":"x"}')
+          [[ "$STATUS" == "401" || "$STATUS" == "422" || "$STATUS" == "400" ]] || \
+            { echo "Auth endpoint unexpected status: $STATUS"; exit 1; }
+          echo "Auth endpoint OK: HTTP $STATUS"
+
+      - name: Alert on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        with:
+          payload: |
+            {
+              "text": "🔥 *PRODUCTION Health Check FAILED* — ${{ vars.PROD_URL }}",
+              "attachments": [{"color": "danger", "text": "Production is potentially down. Immediate investigation required!"}]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  # ── Performance metrics collection ────────────────────────
+  performance-metrics:
+    name: Performance Metrics
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    continue-on-error: true
+    steps:
+      - name: Collect metrics
+        run: |
+          PROD_URL="${{ vars.PROD_URL }}"
+          [ -z "$PROD_URL" ] && exit 0
+
+          echo "## Performance Metrics — $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoint | Status | Time |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          for endpoint in "/health" "/api/auth/login"; do
+            RESULT=$(curl -s -o /dev/null -w "%{http_code}|%{time_total}" --max-time 10 "$PROD_URL$endpoint" || echo "000|timeout")
+            STATUS=$(echo $RESULT | cut -d'|' -f1)
+            TIME=$(echo $RESULT | cut -d'|' -f2)
+            echo "| $endpoint | $STATUS | ${TIME}s |" >> $GITHUB_STEP_SUMMARY
+          done

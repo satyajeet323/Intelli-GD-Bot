@@ -94,6 +94,7 @@ export function useAISession(): UseAISessionReturn {
   const historyRef = useRef<{ role: string; content: string }[]>([]);
   const phaseRef = useRef<SessionPhase>("idle");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAbortRef = useRef<AbortController | null>(null);
   const isListeningRef = useRef(false);
   const pendingTranscriptRef = useRef("");
 
@@ -183,6 +184,11 @@ export function useAISession(): UseAISessionReturn {
     recognitionRef.current?.stop();
     isListeningRef.current = false;
 
+    // Abort any previous in-flight TTS request
+    ttsAbortRef.current?.abort();
+    const abortController = new AbortController();
+    ttsAbortRef.current = abortController;
+
     setPhase("speaking");
     phaseRef.current = "speaking";
 
@@ -195,9 +201,13 @@ export function useAISession(): UseAISessionReturn {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ text }),
+        signal: abortController.signal,
       });
 
       if (!res.ok) throw new Error("TTS request failed");
+
+      // If tab became hidden while fetching, bail out silently
+      if (document.hidden || abortController.signal.aborted) return;
 
       const contentType = res.headers.get("content-type") ?? "";
       if (contentType.includes("application/json")) {
@@ -206,24 +216,38 @@ export function useAISession(): UseAISessionReturn {
       } else {
         // ElevenLabs audio blob
         const blob = await res.blob();
+
+        // Check again after blob download
+        if (document.hidden || abortController.signal.aborted) return;
+
         const url = URL.createObjectURL(blob);
         await new Promise<void>((resolve) => {
           const audio = new Audio(url);
           audioRef.current = audio;
+
+          // If tab is hidden by the time we try to play, skip immediately
+          if (document.hidden) {
+            URL.revokeObjectURL(url);
+            resolve();
+            return;
+          }
+
           audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
           audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.play().catch(() => resolve());
+          audio.play().catch(() => { URL.revokeObjectURL(url); resolve(); });
         });
       }
-    } catch {
-      // Any network/parse error — fall back to browser TTS
+    } catch (err) {
+      // Aborted (tab switch) — don't fall back to browser TTS, just stop
+      if ((err as Error).name === "AbortError") return;
+      // Any other network/parse error — fall back to browser TTS
       await speakWithBrowserTTS(text).catch(() => {
         setIsTTSAvailable(false);
       });
     }
 
-    // Always transition to listening after speaking (unless session ended)
-    if (phaseRef.current !== "ended") {
+    // Only transition to listening if tab is still visible and session is active
+    if (phaseRef.current !== "ended" && !document.hidden) {
       setPhase("listening");
       phaseRef.current = "listening";
       startListening();
@@ -461,12 +485,46 @@ export function useAISession(): UseAISessionReturn {
     }
   }, [liveTranscript, sendTurn, startListening, stopListening]);
 
+  // ── Pause everything when the tab is hidden, resume when visible ──────────
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Abort any in-flight TTS fetch so the audio never starts
+        ttsAbortRef.current?.abort();
+        ttsAbortRef.current = null;
+
+        // Stop speech recognition
+        recognitionRef.current?.stop();
+        isListeningRef.current = false;
+
+        // Stop any playing audio
+        audioRef.current?.pause();
+        audioRef.current = null;
+
+        // Cancel browser TTS
+        window.speechSynthesis?.cancel();
+
+        // Park the phase so nothing auto-restarts
+        if (phaseRef.current !== "idle" && phaseRef.current !== "ended") {
+          setPhase("idle");
+          phaseRef.current = "idle";
+          setLiveTranscript("");
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   // ── Cleanup on unmount ─────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
+      ttsAbortRef.current?.abort();
       stopListening();
       stopTimer();
       audioRef.current?.pause();
+      window.speechSynthesis?.cancel();
     };
   }, [stopListening, stopTimer]);
 

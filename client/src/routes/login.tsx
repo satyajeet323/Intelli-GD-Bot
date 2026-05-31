@@ -78,13 +78,13 @@ export function AuthShell({ title, subtitle, children }: {
 }) {
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center px-4"
+      className="relative min-h-screen flex items-center justify-center px-4 py-10"
       style={{ background: "var(--ib-bg)" }}
     >
       {/* Grid background */}
       <div className="ib-grid-bg" />
 
-      {/* Vertical decorative text */}
+      {/* Vertical decorative text — only on large screens */}
       <div
         className="fixed left-6 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center gap-3"
         style={{ writingMode: "vertical-rl", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--ib-muted)" }}
@@ -98,7 +98,7 @@ export function AuthShell({ title, subtitle, children }: {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 justify-center mb-8">
           <div
-            className="h-10 w-10 flex items-center justify-center"
+            className="h-10 w-10 flex items-center justify-center shrink-0"
             style={{ background: "var(--ib-amber)", clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)" }}
           >
             <Mic className="h-5 w-5" style={{ color: "#0c0b09" }} />
@@ -110,12 +110,12 @@ export function AuthShell({ title, subtitle, children }: {
 
         {/* Card */}
         <div
-          className="p-8 relative"
+          className="p-6 sm:p-8 relative overflow-hidden"
           style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)" }}
         >
           {/* Amber corner brackets */}
-          <span style={{ position: "absolute", top: -1, left: -1, width: 14, height: 14, borderTop: "2px solid var(--ib-amber)", borderLeft: "2px solid var(--ib-amber)" }} />
-          <span style={{ position: "absolute", bottom: -1, right: -1, width: 14, height: 14, borderBottom: "2px solid var(--ib-amber)", borderRight: "2px solid var(--ib-amber)" }} />
+          <span style={{ position: "absolute", top: -1, left: -1, width: 14, height: 14, borderTop: "2px solid var(--ib-amber)", borderLeft: "2px solid var(--ib-amber)", pointerEvents: "none" }} />
+          <span style={{ position: "absolute", bottom: -1, right: -1, width: 14, height: 14, borderBottom: "2px solid var(--ib-amber)", borderRight: "2px solid var(--ib-amber)", pointerEvents: "none" }} />
 
           <h1 className="font-display text-2xl" style={{ color: "var(--ib-fg)" }}>{title}</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--ib-mut2)", fontFamily: "'DM Sans',sans-serif", fontWeight: 300 }}>{subtitle}</p>
@@ -133,13 +133,14 @@ export const Field = forwardRef<
 >(({ icon: Icon, ...props }, ref) => (
   <div className="relative group">
     <Icon
-      className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors"
-      style={{ color: "var(--ib-muted)" }}
+      className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors pointer-events-none"
+      style={{ color: "var(--ib-muted)", zIndex: 1 }}
     />
     <input
       ref={ref}
       {...props}
-      className="ib-input pl-10"
+      className="ib-input"
+      style={{ paddingLeft: "2.5rem" }}
     />
   </div>
 ));

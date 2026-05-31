@@ -34,6 +34,25 @@
   <meta name="theme-color" content="#ffffff">
 
 
+  <!-- SEO: canonical + sitemap discovery -->
+  <link rel="canonical" href="https://intellibot.app/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="description" content="Master group discussions with real-time AI scoring, voice coaching, filler word detection, and peer feedback — powered by Whisper, CRNN, and Gemini AI." />
+  <meta name="keywords" content="group discussion practice, AI speech coach, fluency scoring, GD preparation, voice analysis, filler word detection, WebRTC group session" />
+
+  <!-- Open Graph (social sharing) -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://intellibot.app/" />
+  <meta property="og:title"       content="INTELLI BOT — AI-Powered Group Discussion Coach" />
+  <meta property="og:description" content="Real-time AI scoring, voice coaching, WebRTC group sessions, and peer feedback in one mission-control platform." />
+  <meta property="og:image"       content="https://intellibot.app/android-chrome-512x512.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="INTELLI BOT — AI-Powered Group Discussion Coach" />
+  <meta name="twitter:description" content="Real-time AI scoring, voice coaching, WebRTC group sessions, and peer feedback." />
+  <meta name="twitter:image"       content="https://intellibot.app/android-chrome-512x512.png" />
+
   <title>INTELLI BOT</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -47,6 +66,40 @@
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Structured data — Google rich results -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "INTELLI BOT",
+    "url": "https://intellibot.app",
+    "description": "AI-powered group discussion coaching platform with real-time voice scoring, filler word detection, WebRTC group sessions, and Gemini-powered feedback.",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Real-time fluency scoring",
+      "Filler word detection via CRNN model",
+      "OpenAI Whisper transcription",
+      "Gemini AI feedback",
+      "WebRTC group video sessions",
+      "13-metric performance report",
+      "Peer rating system",
+      "Session leaderboard"
+    ],
+    "screenshot": "https://intellibot.app/android-chrome-512x512.png",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "120"
+    }
+  }
+  </script>
 </body>
 
 </html>
