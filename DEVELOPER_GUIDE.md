@@ -1,63 +1,147 @@
-# Developer Guide - Group Discussion Video Conferencing
+# Developer Guide - Group Discussion Platform
+
+## Architecture
+
+```
+Frontend (React/Vite :5173)
+  └─► Node.js Backend (:4000)          — Auth, sessions, WebRTC, MongoDB, Gemini/Groq, ElevenLabs
+        └─► FastAPI ML Service (:8000)  — Audio transcription, fluency scoring, session evaluation
+              └─► ML Models             — Whisper ASR, FillerCRNN, SBERT
+        └─► MongoDB (:27017)
+        └─► Gemini / Groq / ElevenLabs (external)
+```
 
 ## Quick Start
 
-### Running the Application
+### 1. Copy ML model weights
 
-1. **Start the Server**:
 ```bash
-cd ROXGD/server
-npm install
-npm start
+# Windows
+scripts\setup-ml-models.bat
+
+# Linux / macOS
+bash scripts/setup-ml-models.sh
 ```
 
-2. **Start the Client**:
+### 2. Start the ML service (FastAPI)
+
 ```bash
-cd ROXGD/client
+cd ml-server
+pip install -r requirements.txt
+cp .env.example .env          # then fill in GEMINI_API_KEY etc.
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Health check: http://localhost:8000/health  
+API docs: http://localhost:8000/docs
+ 
+### 3. Start the Node.js backend
+
+```bash
+cd server
+npm install
+cp env.example .env           # then fill in secrets
+npm start                     # or: node src/index.js
+```
+
+### 4. Start the frontend
+
+```bash
+cd client
 npm install
 npm run dev
 ```
-cd ml-server
-uvicorn main:app --port 8000
 
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Open: http://localhost:5173
 
+---
 
-3. **Access the Application**:
-- Open browser to `http://localhost:5173`
-- Create or join a session
-- Allow camera/microphone permissions
+## Service Responsibilities
 
-### Testing
+| Service | Port | Owns |
+|---------|------|------|
+| Node.js backend | 4000 | Auth, users, sessions, WebRTC signalling, chat, notifications, MongoDB, Gemini/Groq AI chat, ElevenLabs TTS, admin panel |
+| FastAPI ML service | 8000 | Audio transcription (Whisper), prosody analysis, filler detection (CRNN), semantic relevance (SBERT), Gemini scoring |
+| MongoDB | 27017 | Persistent data storage |
 
-**Run Signaling Tests**:
+## ML Service Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Liveness probe — returns model availability |
+| POST | `/analyze/audio` | Upload WebM/WAV → transcript + prosody + filler count |
+| POST | `/analyze/transcript` | Score transcript against topic (Gemini + SBERT) |
+| POST | `/evaluate/session` | End-of-session AI analysis (Gemini) |
+| POST | `/generate/report` | Calculate GD overall score + feedback text |
+
+Legacy paths `/api/fluency/upload`, `/api/fluency/score`, `/api/fluency/topic` are kept as aliases for zero-downtime migration.
+
+## Environment Variables
+
+### server/.env
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Node.js port (default: 4000) |
+| `MONGODB_URI` | MongoDB connection string |
+| `JWT_SECRET` | JWT signing secret |
+| `GEMINI_API_KEY` | Google Gemini (topic gen, AI chat fallback) |
+| `GROQ_API_KEY` | Groq Llama (AI chat primary) |
+| `ELEVENLABS_API_KEY` | ElevenLabs TTS |
+| `ML_SERVER_URL` | FastAPI ML service URL (default: http://localhost:8000) |
+| `NODE_SERVER_URL` | This server's own URL (used by ML service for key resolution) |
+| `INTERNAL_SERVICE_SECRET` | Shared secret for Node ↔ ML internal calls |
+
+### ml-server/.env
+
+| Variable | Description |
+|----------|-------------|
+| `ML_PORT` | FastAPI port (default: 8000) |
+| `NODE_SERVER_URL` | Node backend URL for dynamic Gemini key resolution |
+| `GEMINI_API_KEY` | Fallback Gemini key if Node key service is unavailable |
+| `WHISPER_MODEL` | Whisper model size (default: tiny.en) |
+| `FILLER_MODEL_PATH` | Path to filler_crnn_final.pth |
+| `INTERNAL_SERVICE_SECRET` | Shared secret (must match server/.env) |
+
+## Docker
+
+### Local development
+
 ```bash
-cd ROXGD/server
-node test-signaling.js
+docker compose up --build
 ```
 
-**Run Integration Tests**:
+Services started: `mongodb`, `ml-server`, `backend-node`, `frontend`  
+Node waits for ML service health check before starting.
+
+### Production
+
 ```bash
-cd ROXGD/server
-node test-integration.js
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-## Architecture Overview
+## ML Model Files
 
-### Technology Stack
+| File | Location | Notes |
+|------|----------|-------|
+| `filler_crnn_final.pth` | `ml-server/models/` | Copy from `server/` using setup script |
+| `all-MiniLM-L6-v2` | HuggingFace cache | Downloaded automatically on first use |
+| `whisper tiny.en` | `~/.cache/whisper/` | Downloaded automatically on first use |
 
-**Frontend**:
-- React 18 with TypeScript
-- TanStack Router for routing
-- Socket.IO Client for real-time communication
-- WebRTC for peer-to-peer video/audio
-- Tailwind CSS for styling
-- Shadcn UI components
+## Testing
 
-**Backend**:
-- Node.js with Express
-- Socket.IO for WebSocket connections
-- MongoDB for persistent storage
+```bash
+# Node.js
+cd server && node src/index.js
+
+# ML service
+cd ml-server && uvicorn main:app --port 8000
+
+# Health checks
+curl http://localhost:4000/health
+curl http://localhost:8000/health
+curl http://localhost:4000/api/fluency/health
+```
 - In-memory session store for active sessions
 
 ### Key Files

@@ -106,9 +106,14 @@ jobs:
       matrix:
         service:
           - name: backend-node
+            context: .
             dockerfile: docker/Dockerfile.node
-          - name: backend-python
-            dockerfile: docker/Dockerfile.python
+          - name: ml-server
+            context: ./ml-server
+            dockerfile: ml-server/Dockerfile
+          - name: frontend
+            context: .
+            dockerfile: docker/Dockerfile.frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -125,7 +130,7 @@ jobs:
       - name: Build and push ${{ matrix.service.name }}
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ${{ matrix.service.context }}
           file: ${{ matrix.service.dockerfile }}
           push: true
           tags: |
@@ -182,8 +187,6 @@ jobs:
             cat > .env.prod << 'ENVEOF'
             NODE_ENV=production
             PORT=4000
-            PYTHON_PORT=8000
-            FLASK_PORT=6000
             MONGODB_URI=${{ secrets.PROD_MONGODB_URI }}
             JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
             JWT_EXPIRES_IN=7d
@@ -193,7 +196,9 @@ jobs:
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
             CLIENT_ORIGINS=${{ vars.PROD_CLIENT_ORIGINS }}
-            PYTHON_SERVICE_URL=http://backend-python:8000
+            ML_SERVER_URL=http://ml-server:8000
+            NODE_SERVER_URL=http://backend-node:4000
+            INTERNAL_SERVICE_SECRET=${{ secrets.INTERNAL_SERVICE_SECRET }}
             BCRYPT_ROUNDS=12
             RATE_LIMIT_WINDOW_MS=900000
             RATE_LIMIT_MAX_REQUESTS=100

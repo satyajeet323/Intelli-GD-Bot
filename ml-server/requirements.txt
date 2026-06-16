@@ -1,0 +1,32 @@
+# ML Server — Python dependencies
+# Pin versions for reproducible builds
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.12
+
+# ── ML / Audio ────────────────────────────────────────────────────────────────
+torch==2.2.0
+torchaudio==2.2.0
+openai-whisper==20231117
+librosa==0.10.2
+soundfile==0.12.1
+scipy==1.13.1
+numpy==1.26.4
+
+# ── NLP / Semantic similarity ─────────────────────────────────────────────────
+sentence-transformers==3.0.1
+nltk==3.9.1
+
+# ── Google Gemini ─────────────────────────────────────────────────────────────
+google-genai==0.8.3
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+requests==2.32.3
+imageio-ffmpeg==0.5.1
+ffmpeg-python==0.2.0
+
+# ── Optional: Praat pitch extraction (install separately if needed) ────────────
+# praat-parselmouth==0.4.3

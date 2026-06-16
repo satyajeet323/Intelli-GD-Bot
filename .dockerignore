@@ -1,42 +1,51 @@
-# Git
+# ── Git ───────────────────────────────────────────────────────────────────────
 .git
 .gitignore
 
-# Node modules (installed inside container)
+# ── Node modules (re-installed inside containers) ─────────────────────────────
 node_modules
 */node_modules
+client/node_modules
+server/node_modules
 
-# Build outputs
+# ── Build outputs ─────────────────────────────────────────────────────────────
 client/dist
 client/.tanstack
 
-# Dev/test files
+# ── Dev/test artifacts ────────────────────────────────────────────────────────
 server/test-*.js
 server/test-*.ps1
 server/segments_temp
 server/sessions/*.db
 
-# Env files (injected at runtime)
+# ── Env files (injected at runtime) ──────────────────────────────────────────
 .env
 .env.*
 server/.env
 client/.env
+ml-server/.env
 
-# Docs & CI configs
+# ── Docs & CI ─────────────────────────────────────────────────────────────────
 *.md
 .github
 .vscode
 
-# Python cache
+# ── Python / ML caches ────────────────────────────────────────────────────────
 __pycache__
+**/__pycache__
 *.pyc
 *.pyo
 .pytest_cache
+ml-server/temp
+ml-server/temp_audio
+ml-server/segments_temp
+ml-server/reports
+ml-server/logs
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 logs/
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

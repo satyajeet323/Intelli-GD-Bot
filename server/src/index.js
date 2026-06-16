@@ -23,8 +23,7 @@ import cors             from "cors";
 import jwt              from "jsonwebtoken";
 import axios            from "axios";
 import multer           from "multer";
-import { createReadStream, unlink } from "fs";
-import FormData         from "form-data";
+import { unlink }       from "fs";
 
 import { connectDB }            from "./db.js";
 import { requestLogger }        from "./middleware/logger.js";
@@ -45,6 +44,12 @@ import { UserNotification }     from "./models/UserNotification.js";
 import { User as UserModel }    from "./models/User.js";
 import { metrics }              from "./routes/admin/analytics.js";
 import { apiKeyService }        from "./services/apiKeyService.js";
+import {
+  checkMLHealth,
+  analyzeAudio,
+  scoreTranscript,
+  getFluencyTopic,
+} from "./services/mlClient.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
@@ -235,73 +240,62 @@ app.post("/api/tts", apiLimiter, async (req, res) => {
   }
 });
 
-// ── Fluency routes — proxy to FastAPI (port 8000) ─────────────────────────────
-const PYTHON_URL = process.env.PYTHON_SERVICE_URL ?? "http://localhost:8000";
+// ── Fluency routes — orchestrated via ML microservice ────────────────────────
 const upload = multer({ dest: "uploads/" });
-
-const PYTHON_DOWN_MSG = "The Python analysis server is not running. Start it with: uvicorn main:app --port 8000";
-
-function isPythonDown(err) {
-  return err.code === "ECONNREFUSED" || err.code === "ECONNRESET" || err.code === "ENOTFOUND";
-}
+const ML_DOWN_MSG =
+  "ML service is not available. Start it with: uvicorn main:app --port 8000  (in ml-server/)";
 
 app.get("/api/fluency/topic", async (_req, res) => {
   try {
-    const r = await axios.get(`${PYTHON_URL}/api/fluency/topic`, { timeout: 15000 });
-    res.json(r.data);
+    const data = await getFluencyTopic();
+    res.json(data);
   } catch (err) {
     console.error("[fluency] topic:", err.message);
-    const msg = isPythonDown(err) ? PYTHON_DOWN_MSG : (err.response?.data?.error ?? "Failed to generate topic.");
-    res.status(502).json({ error: msg });
+    res.status(err.status ?? 502).json({ error: err.message ?? "Failed to generate topic." });
   }
 });
 
 app.post("/api/fluency/upload", upload.single("audio"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No audio file provided." });
-  const filePath = req.file.path;
+  const { path: filePath, originalname, mimetype } = req.file;
   try {
-    const form = new FormData();
-    form.append("audio", createReadStream(filePath), {
-      filename:    req.file.originalname ?? "recording.webm",
-      contentType: req.file.mimetype    ?? "audio/webm",
-    });
-    const r = await axios.post(`${PYTHON_URL}/api/fluency/upload`, form, {
-      headers:          form.getHeaders(),
-      maxContentLength: Infinity,
-      maxBodyLength:    Infinity,
-      timeout:          120_000,
-    });
-    res.json(r.data);
+    const { readFileSync } = await import("fs");
+    const fileBuffer = readFileSync(filePath);
+    const data = await analyzeAudio(
+      fileBuffer,
+      originalname ?? "recording.webm",
+      mimetype     ?? "audio/webm"
+    );
+    res.json(data);
   } catch (err) {
     console.error("[fluency] upload:", err.message);
-    const msg = isPythonDown(err) ? PYTHON_DOWN_MSG : (err.response?.data?.error ?? "Failed to process audio.");
-    res.status(isPythonDown(err) ? 503 : (err.response?.status ?? 502)).json({ error: msg });
+    res.status(err.status ?? 502).json({ error: err.message ?? "Failed to process audio." });
   } finally {
     unlink(filePath, () => {});
   }
 });
 
 app.post("/api/fluency/score", async (req, res) => {
+  const { transcript, topic, prosody } = req.body;
+  if (!transcript || !topic) {
+    return res.status(400).json({ error: "transcript and topic are required." });
+  }
   try {
-    const r = await axios.post(`${PYTHON_URL}/api/fluency/score`, req.body, {
-      headers: { "Content-Type": "application/json" },
-      timeout: 60_000,
-    });
-    res.json(r.data);
+    const data = await scoreTranscript(transcript, topic, prosody ?? {});
+    res.json(data);
   } catch (err) {
     console.error("[fluency] score:", err.message);
-    const msg = isPythonDown(err) ? PYTHON_DOWN_MSG : (err.response?.data?.error ?? "Failed to score fluency.");
-    res.status(isPythonDown(err) ? 503 : (err.response?.status ?? 502)).json({ error: msg });
+    res.status(err.status ?? 502).json({ error: err.message ?? "Failed to score fluency." });
   }
 });
 
-// ── Fluency health check — pings a lightweight Python endpoint ───────────────
+// ── ML health check endpoint ──────────────────────────────────────────────────
 app.get("/api/fluency/health", async (_req, res) => {
-  try {
-    await axios.get(`${PYTHON_URL}/health`, { timeout: 4000 });
+  const online = await checkMLHealth();
+  if (online) {
     res.json({ online: true });
-  } catch {
-    res.status(503).json({ online: false, message: "The Python analysis server is not running. Start it with: uvicorn main:app --port 8000" });
+  } else {
+    res.status(503).json({ online: false, message: ML_DOWN_MSG });
   }
 });
 
@@ -440,7 +434,7 @@ setInterval(processScheduledNotifications, 10_000);
 setTimeout(processScheduledNotifications, 3_000);
 
 // ── Start server ──────────────────────────────────────────────────────────────
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   const line = "═".repeat(50);
   console.log(`\n╔${line}╗`);
   console.log(`║${"  INTELLI BOT Backend — All Modules Integrated".padEnd(50)}║`);
@@ -456,8 +450,17 @@ httpServer.listen(PORT, () => {
   console.log(`  mongodb: ${process.env.MONGODB_URI ? "✓ configured" : "✗ not set"}`);
   console.log(`  gemini:  ${process.env.GEMINI_API_KEY ? "✓ set" : "✗ not set (local fallback)"}`);
   console.log(`  jwt:     ${process.env.JWT_SECRET ? "✓ set" : "⚠ using fallback secret"}`);
-  console.log(`  fluency: ${process.env.PYTHON_SERVICE_URL ?? "http://localhost:8000"} (FastAPI)`);
+  console.log(`  ml-svc:  ${process.env.ML_SERVER_URL ?? "http://localhost:8000"} (FastAPI)`);
   console.log(`  limits:  auth-write=${IS_PROD ? 20 : 100}/15min  api=${IS_PROD ? 200 : 1000}/min\n`);
+
+  // ── ML service startup validation ──────────────────────────────────────────
+  const mlOnline = await checkMLHealth();
+  if (mlOnline) {
+    console.log("  ml-svc:  ✓ online — AI/fluency features enabled");
+  } else {
+    console.warn("  ml-svc:  ✗ offline — AI/fluency features degraded");
+    console.warn("  Start ML service: cd ml-server && uvicorn main:app --port 8000\n");
+  }
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────

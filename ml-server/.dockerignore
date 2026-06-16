@@ -1,0 +1,16 @@
+# ml-server build context exclusions
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.env
+.env.*
+temp/
+temp_audio/
+segments_temp/
+reports/
+logs/
+*.log
+.DS_Store
+Thumbs.db

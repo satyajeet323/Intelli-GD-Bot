@@ -1,5 +1,9 @@
 # ============================================================
 # docker-compose.yml — Local development
+# Architecture:
+#   frontend → backend-node (4000) → ml-server (8000)
+#                                  → mongodb (27017)
+#                                  → Gemini / Groq / ElevenLabs
 # ============================================================
 version: "3.9"
 
@@ -17,6 +21,38 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── ML microservice (FastAPI) ──────────────────────────────────────────────
+  ml-server:
+    build:
+      context: ./ml-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: ml-server/.env.example
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NODE_SERVER_URL=http://backend-node:4000
+      - ML_PORT=8000
+    volumes:
+      - ml-temp:/app/temp
+      - ml-temp-audio:/app/temp_audio
+      - ml-segments:/app/segments_temp
+      - ml-reports:/app/reports
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 15s
+      start_period: 90s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ── Node.js backend ────────────────────────────────────────────────────────
   backend-node:
     build:
       context: .
@@ -27,10 +63,13 @@ services:
     env_file: server/.env
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/gdbot
-      - PYTHON_SERVICE_URL=http://backend-python:8000
+      - ML_SERVER_URL=http://ml-server:8000
+      - NODE_SERVER_URL=http://backend-node:4000
       - NODE_ENV=development
     depends_on:
       mongodb:
+        condition: service_healthy
+      ml-server:
         condition: service_healthy
     volumes:
       - uploads:/app/uploads
@@ -38,27 +77,6 @@ services:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-
-  backend-python:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.python
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-      - "6000:6000"
-    env_file: server/.env
-    environment:
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - python-temp:/app/temp
-      - python-sessions:/app/sessions
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 15s
-      start_period: 60s
       retries: 3
 
   frontend:
@@ -76,8 +94,10 @@ services:
 volumes:
   mongo-data:
   uploads:
-  python-temp:
-  python-sessions:
+  ml-temp:
+  ml-temp-audio:
+  ml-segments:
+  ml-reports:
 
 networks:
   default:
