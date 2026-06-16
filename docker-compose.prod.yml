@@ -1,10 +1,45 @@
 # ============================================================
 # docker-compose.prod.yml — Production environment
-# Zero-downtime: --wait flag ensures health before cutover
 # ============================================================
 version: "3.9"
 
 services:
+  # ── ML microservice ────────────────────────────────────────────────────────
+  ml-server:
+    image: ${REGISTRY}/${IMAGE_PREFIX}/ml-server:${IMAGE_TAG:-latest}
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NODE_SERVER_URL=http://backend-node:4000
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
+      - PYTHONUNBUFFERED=1
+      - ML_PORT=8000
+    volumes:
+      - ml-temp:/app/temp
+      - ml-temp-audio:/app/temp_audio
+      - ml-segments:/app/segments_temp
+      - ml-reports:/app/reports
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 15s
+      start_period: 90s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  # ── Node.js backend ────────────────────────────────────────────────────────
   backend-node:
     image: ${REGISTRY}/${IMAGE_PREFIX}/backend-node:${IMAGE_TAG:-latest}
     restart: always
@@ -21,12 +56,17 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
       - CLIENT_ORIGINS=${CLIENT_ORIGINS}
-      - PYTHON_SERVICE_URL=http://backend-python:8000
+      - ML_SERVER_URL=http://ml-server:8000
+      - NODE_SERVER_URL=http://backend-node:4000
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
       - BCRYPT_ROUNDS=12
       - RATE_LIMIT_WINDOW_MS=900000
       - RATE_LIMIT_MAX_REQUESTS=100
     volumes:
       - uploads:/app/uploads
+    depends_on:
+      ml-server:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
       interval: 20s
@@ -39,36 +79,6 @@ services:
           memory: 512M
         reservations:
           memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "100m"
-        max-file: "10"
-
-  backend-python:
-    image: ${REGISTRY}/${IMAGE_PREFIX}/backend-python:${IMAGE_TAG:-latest}
-    restart: always
-    ports:
-      - "8000:8000"
-      - "6000:6000"
-    environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - python-temp:/app/temp
-      - python-sessions:/app/sessions
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 15s
-      start_period: 90s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
     logging:
       driver: json-file
       options:
@@ -96,11 +106,10 @@ services:
 
 volumes:
   uploads:
-    driver: local
-  python-temp:
-    driver: local
-  python-sessions:
-    driver: local
+  ml-temp:
+  ml-temp-audio:
+  ml-segments:
+  ml-reports:
 
 networks:
   default:
