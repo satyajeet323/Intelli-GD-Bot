@@ -12,7 +12,7 @@ import { NotificationCenter, NotificationBanner } from "@/components/Notificatio
 
 const NAKED_ROUTES        = new Set(["/", "/login", "/register"]);
 const FULLSCREEN_PREFIXES = ["/group-session/"];
-const FIXED_HEIGHT_ROUTES = ["/gd/"];
+const FIXED_HEIGHT_ROUTES = ["/ai-session"];
 const ADMIN_PREFIX        = "/admin";
 
 type RouteConfig = { title: string; backTo: string | null };

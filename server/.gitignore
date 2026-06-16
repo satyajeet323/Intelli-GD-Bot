@@ -1,2 +1,10 @@
 .env
 node_modules
+uploads/
+
+# Old Python ML artifacts — ML code now lives in ml-server/
+__pycache__/
+*.pyc
+segments_temp/
+temp/
+temp_audio/

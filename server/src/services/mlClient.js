@@ -60,7 +60,18 @@ async function _withRetry(fn, attempts = RETRY_ATTEMPTS) {
       return await fn();
     } catch (err) {
       lastErr = err;
-      if (isServiceDown(err)) { _mlAvailable = false; throw mlUnavailableError(); }
+      if (isServiceDown(err)) {
+        _mlAvailable = false;
+        throw mlUnavailableError();
+      }
+      // Extract FastAPI error detail and attach proper status so callers
+      // can return the real HTTP status instead of a generic 500
+      if (err.response) {
+        const detail = err.response.data?.detail ?? err.response.data?.error ?? err.message;
+        const e = new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+        e.status = err.response.status;
+        throw e;  // don't retry on 4xx — only retry on network errors
+      }
       if (i < attempts - 1) await _sleep(RETRY_BACKOFF_MS * (i + 1));
     }
   }
