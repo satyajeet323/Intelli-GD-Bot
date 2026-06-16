@@ -290,7 +290,7 @@ function FluencySession() {
   const isError     = phase === "error";
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-3.5rem)] animate-fade-in px-4 sm:px-6 py-6 max-w-3xl mx-auto space-y-5">
+    <div className="animate-fade-in px-4 sm:px-6 py-6 max-w-3xl mx-auto space-y-5 pb-16">
 
       {/* Topic card */}
       <div>
@@ -481,7 +481,7 @@ function FluencyResults({
   ];
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-5 pb-20">
       {/* Overall score hero */}
       <div className="glass rounded-2xl p-6 flex items-center gap-5">
         <div className="h-20 w-20 rounded-2xl gradient-cosmic flex flex-col items-center justify-center shadow-glow shrink-0">

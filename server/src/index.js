@@ -23,7 +23,7 @@ import cors             from "cors";
 import jwt              from "jsonwebtoken";
 import axios            from "axios";
 import multer           from "multer";
-import { unlink }       from "fs";
+import { unlink, readFileSync } from "fs";
 
 import { connectDB }            from "./db.js";
 import { requestLogger }        from "./middleware/logger.js";
@@ -259,7 +259,6 @@ app.post("/api/fluency/upload", upload.single("audio"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No audio file provided." });
   const { path: filePath, originalname, mimetype } = req.file;
   try {
-    const { readFileSync } = await import("fs");
     const fileBuffer = readFileSync(filePath);
     const data = await analyzeAudio(
       fileBuffer,
