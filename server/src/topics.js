@@ -109,19 +109,23 @@ function cleanTopic(raw) {
   return t;
 }
 
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
 async function callGemini(apiKey, category) {
   const controller = new AbortController();
   const timer      = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await fetch(`${GEMINI_INTERACTIONS_URL}?key=${apiKey}`, {
       method:  "POST",
       signal:  controller.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: buildPrompt(category) }] }],
-        generationConfig: { maxOutputTokens: 80, temperature: 0.9 },
+        model: "gemini-3.7-flash",
+        input: buildPrompt(category),
+        generation_config: {
+          temperature: 0.9,
+          max_output_tokens: 80,
+        },
       }),
     });
     clearTimeout(timer);
@@ -131,7 +135,7 @@ async function callGemini(apiKey, category) {
       throw err;
     }
     const json = await res.json();
-    const raw  = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const raw  = json?.output_text ?? json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     return cleanTopic(raw);
   } finally {
     clearTimeout(timer);

@@ -16,7 +16,7 @@ import requests
 _NODE_URL     = os.getenv("NODE_SERVER_URL", "http://localhost:4000")
 _INT_SECRET   = os.getenv("INTERNAL_SERVICE_SECRET") or os.getenv("JWT_SECRET", "")
 _CACHE_TTL    = int(os.getenv("GEMINI_API_KEY_TTL", "30"))
-_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
 
 _lock:   threading.Lock = threading.Lock()
 _cached: dict           = {"value": None, "ts": 0.0}
@@ -50,24 +50,26 @@ def get_gemini_key() -> str | None:
 
 
 def get_gemini_client():
-    """Return a configured google.generativeai client, raising if no key available."""
-    import google.generativeai as genai
+    """Return a configured google.genai client, raising if no key available."""
+    from google import genai
     key = get_gemini_key()
     if not key:
         raise ValueError(
             "No active Gemini API key. Configure one via Admin Panel → API Keys."
         )
-    genai.configure(api_key=key)
-    return genai
+    return genai.Client(api_key=key)
 
 
 def gemini_generate(prompt: str) -> str:
-    """Single-shot text generation via Gemini."""
-    import google.generativeai as genai
+    """Single-shot text generation via Gemini using new Interactions API."""
+    from google import genai
     key = get_gemini_key()
     if not key:
         raise ValueError("No active Gemini API key.")
-    genai.configure(api_key=key)
-    model = genai.GenerativeModel(_GEMINI_MODEL)
-    resp  = model.generate_content(prompt)
-    return resp.text
+    
+    client = genai.Client(api_key=key)
+    interaction = client.interactions.create(
+        model=_GEMINI_MODEL,
+        input=prompt
+    )
+    return interaction.output_text

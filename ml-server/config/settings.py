@@ -19,7 +19,7 @@ NODE_SERVER_URL  = os.getenv("NODE_SERVER_URL", "http://localhost:4000")
 INTERNAL_SECRET  = os.getenv("INTERNAL_SERVICE_SECRET") or os.getenv("JWT_SECRET", "")
 
 # ── Gemini AI ─────────────────────────────────────────────────────────────────
-GEMINI_MODEL        = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL        = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
 GEMINI_API_KEY_TTL  = int(os.getenv("GEMINI_API_KEY_TTL", "30"))
 
 # ── Audio / Whisper ───────────────────────────────────────────────────────────
