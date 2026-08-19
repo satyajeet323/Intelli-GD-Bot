@@ -356,7 +356,7 @@
       color-mix(in srgb, var(--ib-fg) 4%, transparent) 2px,
       color-mix(in srgb, var(--ib-fg) 4%, transparent) 4px
     );
-    z-index: 1;
+    z-index: 0;
   }
 
   /* Animated grid background */

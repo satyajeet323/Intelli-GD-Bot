@@ -26,7 +26,7 @@ export interface UseAITopicResult {
 
 type TopicResult = { topic: string; source: TopicSource };
 
-const BASE_URL  = (import.meta.env.VITE_SERVER_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const BASE_URL  = (import.meta.env.VITE_SERVER_URL ?? "").replace(/\/$/, "");
 const CACHE_TTL = 5 * 60 * 1000;
 
 // ── Module-level cache & dedup ────────────────────────────────────────────────

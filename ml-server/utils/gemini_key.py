@@ -50,18 +50,24 @@ def get_gemini_key() -> str | None:
 
 
 def get_gemini_client():
-    """Return a configured google.genai client, raising if no key available."""
-    import google.genai as genai
+    """Return a configured google.generativeai client, raising if no key available."""
+    import google.generativeai as genai
     key = get_gemini_key()
     if not key:
         raise ValueError(
             "No active Gemini API key. Configure one via Admin Panel → API Keys."
         )
-    return genai.Client(api_key=key)
+    genai.configure(api_key=key)
+    return genai
 
 
 def gemini_generate(prompt: str) -> str:
     """Single-shot text generation via Gemini."""
-    client = get_gemini_client()
-    resp   = client.models.generate_content(model=_GEMINI_MODEL, contents=prompt)
+    import google.generativeai as genai
+    key = get_gemini_key()
+    if not key:
+        raise ValueError("No active Gemini API key.")
+    genai.configure(api_key=key)
+    model = genai.GenerativeModel(_GEMINI_MODEL)
+    resp  = model.generate_content(prompt)
     return resp.text

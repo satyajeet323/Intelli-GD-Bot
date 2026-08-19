@@ -8,7 +8,7 @@ import { io, Socket } from "socket.io-client";
 import { notifications as notifApi, type UserNotification } from "@/lib/api";
 import { getToken } from "@/lib/api";
 
-const SERVER_URL = (import.meta.env.VITE_SERVER_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const SERVER_URL = (import.meta.env.VITE_SERVER_URL ?? "").replace(/\/$/, "");
 
 export function useNotifications(enabled = true) {
   const [items, setItems]           = useState<UserNotification[]>([]);

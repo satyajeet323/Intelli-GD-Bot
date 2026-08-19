@@ -1,0 +1,3 @@
+{
+  "comment": "The ML server requires PyTorch (~2GB), ffmpeg, and 2-minute timeouts — it cannot run on Vercel. Deploy to Hugging Face Spaces (free) or Railway instead. See README_DEPLOY.md"
+}

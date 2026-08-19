@@ -56,7 +56,7 @@ const PORT = parseInt(process.env.PORT ?? "4000", 10);
 const IS_PROD = process.env.NODE_ENV === "production";
 
 const CLIENT_ORIGINS = (
-  process.env.CLIENT_ORIGINS ?? "http://localhost:5173,http://localhost:5174 , https://xnlzq10h-5174.inc1.devtunnels.ms/"
+  process.env.CLIENT_ORIGINS ?? "http://localhost:5173,http://localhost:5174,https://intellibot-ai.vercel.app"
 )
   .split(",")
   .map((o) => o.trim())

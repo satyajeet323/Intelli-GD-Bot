@@ -1,0 +1,3378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>INTELLI BOT | Under Maintenance</title>
+
+  <meta
+    name="description"
+    content="INTELLI BOT is an AI-powered group discussion practice and performance analysis platform."
+  />
+
+  <style>
+
+    /* =========================================================
+       ROOT
+    ========================================================= */
+
+    :root {
+      --orange: #f59a23;
+      --orange-dark: #df7f0d;
+      --orange-light: #fff3df;
+
+      --black: #202020;
+      --dark: #333333;
+
+      --gray: #777777;
+      --light-gray: #eeeeee;
+      --lighter: #f8f8f8;
+
+      --white: #ffffff;
+
+      --shadow:
+        0 20px 60px rgba(0, 0, 0, 0.08);
+    }
+
+
+    /* =========================================================
+       RESET
+    ========================================================= */
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+
+    body {
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+
+      color: var(--black);
+
+      background: var(--white);
+
+      overflow-x: hidden;
+    }
+
+
+    button {
+      font-family: inherit;
+    }
+
+
+    /* =========================================================
+       BACKGROUND
+    ========================================================= */
+
+    .page {
+      position: relative;
+
+      min-height: 100vh;
+
+      overflow: hidden;
+
+      background:
+        radial-gradient(
+          circle at 90% 10%,
+          rgba(245, 154, 35, 0.10),
+          transparent 28%
+        ),
+
+        radial-gradient(
+          circle at 5% 90%,
+          rgba(245, 154, 35, 0.06),
+          transparent 30%
+        ),
+
+        #fff;
+    }
+
+
+    /* =========================================================
+       FLOATING PARTICLES
+    ========================================================= */
+
+    .particles {
+      position: fixed;
+
+      inset: 0;
+
+      pointer-events: none;
+
+      overflow: hidden;
+
+      z-index: 0;
+    }
+
+
+    .particle {
+      position: absolute;
+
+      width: 5px;
+      height: 5px;
+
+      background: var(--orange);
+
+      opacity: 0.25;
+
+      transform: rotate(45deg);
+
+      animation:
+        particleFloat linear infinite;
+    }
+
+
+    @keyframes particleFloat {
+
+      0% {
+        transform:
+          translateY(110vh)
+          rotate(0deg);
+
+        opacity: 0;
+      }
+
+      15% {
+        opacity: 0.25;
+      }
+
+      85% {
+        opacity: 0.25;
+      }
+
+      100% {
+        transform:
+          translateY(-20vh)
+          rotate(360deg);
+
+        opacity: 0;
+      }
+
+    }
+
+
+    /* =========================================================
+       HEADER
+    ========================================================= */
+
+    header {
+      position: relative;
+
+      z-index: 20;
+
+      width: min(1180px, calc(100% - 40px));
+
+      height: 90px;
+
+      margin: auto;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+    }
+
+
+    .logo {
+      display: flex;
+
+      align-items: center;
+
+      gap: 12px;
+
+      font-weight: 900;
+
+      letter-spacing: -0.5px;
+
+      color: var(--black);
+
+      text-decoration: none;
+    }
+
+
+    .logo-mark {
+      width: 42px;
+      height: 42px;
+
+      display: grid;
+
+      place-items: center;
+
+      background: var(--orange);
+
+      color: white;
+
+      font-size: 15px;
+
+      font-weight: 900;
+
+      border-radius: 10px;
+
+      box-shadow:
+        0 8px 25px rgba(245, 154, 35, 0.25);
+
+      transform: rotate(-4deg);
+
+      transition: 0.3s ease;
+    }
+
+
+    .logo:hover .logo-mark {
+      transform:
+        rotate(4deg)
+        scale(1.05);
+    }
+
+
+    .logo-text {
+      font-size: 18px;
+
+      letter-spacing: 1px;
+    }
+
+
+    .logo-text span {
+      color: var(--orange);
+    }
+
+
+    .header-status {
+      display: flex;
+
+      align-items: center;
+
+      gap: 9px;
+
+      padding: 9px 15px;
+
+      border-radius: 50px;
+
+      background: var(--orange-light);
+
+      color: var(--orange-dark);
+
+      font-size: 11px;
+
+      font-weight: 700;
+
+      letter-spacing: 0.7px;
+
+      text-transform: uppercase;
+    }
+
+
+    .status-light {
+      width: 8px;
+      height: 8px;
+
+      background: var(--orange);
+
+      border-radius: 50%;
+
+      box-shadow:
+        0 0 0 5px
+        rgba(245, 154, 35, 0.12);
+
+      animation:
+        statusPulse 1.6s infinite;
+    }
+
+
+    @keyframes statusPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(0.65);
+
+        opacity: 0.5;
+      }
+
+    }
+
+
+    /* =========================================================
+       HERO
+    ========================================================= */
+
+    .hero {
+      position: relative;
+
+      z-index: 2;
+
+      width: min(1180px, calc(100% - 40px));
+
+      min-height: 660px;
+
+      margin: auto;
+
+      display: grid;
+
+      grid-template-columns: 0.9fr 1.1fr;
+
+      align-items: center;
+
+      gap: 50px;
+
+      padding: 50px 0 100px;
+    }
+
+
+    /* =========================================================
+       HERO CONTENT
+    ========================================================= */
+
+    .hero-content {
+      position: relative;
+
+      z-index: 5;
+    }
+
+
+    .eyebrow {
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      color: var(--orange-dark);
+
+      font-size: 11px;
+
+      font-weight: 800;
+
+      letter-spacing: 2px;
+
+      text-transform: uppercase;
+
+      margin-bottom: 22px;
+    }
+
+
+    .eyebrow::before {
+      content: "";
+
+      width: 28px;
+      height: 2px;
+
+      background: var(--orange);
+    }
+
+
+    .hero h1 {
+      font-size:
+        clamp(3.2rem, 6vw, 6rem);
+
+      line-height: 0.92;
+
+      letter-spacing: -5px;
+
+      color: var(--black);
+
+      margin-bottom: 25px;
+    }
+
+
+    .hero h1 span {
+      color: var(--orange);
+    }
+
+
+    .hero-description {
+      max-width: 540px;
+
+      color: var(--gray);
+
+      font-size: 15px;
+
+      line-height: 1.85;
+
+      margin-bottom: 30px;
+    }
+
+
+    .hero-description strong {
+      color: var(--dark);
+    }
+
+
+    /* =========================================================
+       MAINTENANCE BOX
+    ========================================================= */
+
+    .maintenance-box {
+      width: 100%;
+
+      max-width: 530px;
+
+      padding: 22px;
+
+      background: white;
+
+      border: 1px solid #eeeeee;
+
+      border-radius: 14px;
+
+      box-shadow: var(--shadow);
+    }
+
+
+    .maintenance-top {
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      margin-bottom: 16px;
+    }
+
+
+    .maintenance-title {
+      display: flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+      font-size: 12px;
+
+      font-weight: 800;
+
+      text-transform: uppercase;
+
+      letter-spacing: 1px;
+    }
+
+
+    .maintenance-title-icon {
+      width: 28px;
+      height: 28px;
+
+      display: grid;
+
+      place-items: center;
+
+      border-radius: 8px;
+
+      color: var(--orange-dark);
+
+      background: var(--orange-light);
+    }
+
+
+    .percentage {
+      color: var(--orange-dark);
+
+      font-size: 12px;
+
+      font-weight: 800;
+
+      font-family: monospace;
+    }
+
+
+    .progress {
+      height: 8px;
+
+      width: 100%;
+
+      border-radius: 20px;
+
+      background: #f0f0f0;
+
+      overflow: hidden;
+    }
+
+
+    .progress-bar {
+      width: 0%;
+
+      height: 100%;
+
+      border-radius: 20px;
+
+      background:
+        linear-gradient(
+          90deg,
+          var(--orange),
+          #ffb84c
+        );
+
+      box-shadow:
+        0 0 15px rgba(245, 154, 35, 0.25);
+
+      animation:
+        progressLoad 3s
+        cubic-bezier(.22,.61,.36,1)
+        forwards;
+    }
+
+
+    @keyframes progressLoad {
+
+      from {
+        width: 0%;
+      }
+
+      to {
+        width: 76%;
+      }
+
+    }
+
+
+    .maintenance-message {
+      margin-top: 14px;
+
+      color: #999;
+
+      font-size: 11px;
+
+      line-height: 1.6;
+    }
+
+
+    /* =========================================================
+       HERO VISUAL
+    ========================================================= */
+
+    .construction {
+      position: relative;
+
+      width: 100%;
+
+      height: 560px;
+
+      overflow: hidden;
+
+      border-radius: 25px;
+
+      background:
+        linear-gradient(
+          180deg,
+          #fff,
+          #fff9f1
+        );
+    }
+
+
+    /* Sun */
+
+    .sun {
+      position: absolute;
+
+      width: 110px;
+      height: 110px;
+
+      border-radius: 50%;
+
+      right: 75px;
+      top: 55px;
+
+      background:
+        rgba(245, 154, 35, 0.12);
+
+      box-shadow:
+        0 0 0 30px
+        rgba(245, 154, 35, 0.035);
+
+      animation:
+        sunPulse 4s ease-in-out infinite;
+    }
+
+
+    @keyframes sunPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.07);
+      }
+
+    }
+
+
+    /* =========================================================
+       CLOUDS
+    ========================================================= */
+
+    .cloud {
+      position: absolute;
+
+      height: 18px;
+
+      border-radius: 50px;
+
+      background: #f8ddb0;
+
+      opacity: 0.5;
+
+      animation:
+        cloudMove linear infinite;
+    }
+
+
+    .cloud::before,
+    .cloud::after {
+      content: "";
+
+      position: absolute;
+
+      border-radius: 50%;
+
+      background: inherit;
+    }
+
+
+    .cloud::before {
+      width: 35px;
+      height: 35px;
+
+      left: 15px;
+      bottom: 0;
+    }
+
+
+    .cloud::after {
+      width: 45px;
+      height: 45px;
+
+      right: 18px;
+      bottom: 0;
+    }
+
+
+    .cloud-1 {
+      width: 120px;
+
+      top: 75px;
+      left: 40px;
+
+      animation-duration: 22s;
+    }
+
+
+    .cloud-2 {
+      width: 150px;
+
+      top: 140px;
+      right: 250px;
+
+      opacity: 0.3;
+
+      animation-duration: 28s;
+
+      animation-delay: -10s;
+    }
+
+
+    @keyframes cloudMove {
+
+      0% {
+        transform: translateX(-30px);
+      }
+
+      50% {
+        transform: translateX(30px);
+      }
+
+      100% {
+        transform: translateX(-30px);
+      }
+
+    }
+
+
+    /* =========================================================
+       CRANE
+    ========================================================= */
+
+    .crane {
+      position: absolute;
+
+      width: 450px;
+      height: 390px;
+
+      right: 50px;
+      top: 35px;
+    }
+
+
+    .crane-tower {
+      position: absolute;
+
+      width: 65px;
+      height: 350px;
+
+      left: 95px;
+      bottom: 0;
+
+      border-left: 6px solid #b8b8b8;
+
+      border-right: 6px solid #b8b8b8;
+
+      background:
+        repeating-linear-gradient(
+          135deg,
+          transparent 0,
+          transparent 20px,
+          #c2c2c2 21px,
+          #c2c2c2 23px
+        );
+    }
+
+
+    .crane-tower::before {
+      content: "";
+
+      position: absolute;
+
+      inset: 0;
+
+      background:
+        repeating-linear-gradient(
+          -135deg,
+          transparent 0,
+          transparent 20px,
+          #c2c2c2 21px,
+          #c2c2c2 23px
+        );
+    }
+
+
+    .crane-top {
+      position: absolute;
+
+      left: 70px;
+      top: 0;
+
+      width: 340px;
+      height: 25px;
+
+      background:
+        repeating-linear-gradient(
+          135deg,
+          transparent 0,
+          transparent 18px,
+          #b9b9b9 19px,
+          #b9b9b9 21px
+        );
+
+      border-top: 5px solid #a8a8a8;
+
+      border-bottom: 4px solid #a8a8a8;
+    }
+
+
+    .crane-cabin {
+      position: absolute;
+
+      left: 55px;
+      top: 15px;
+
+      width: 55px;
+      height: 50px;
+
+      background: var(--orange);
+
+      clip-path:
+        polygon(
+          15% 100%,
+          15% 20%,
+          35% 0,
+          100% 20%,
+          100% 100%
+        );
+    }
+
+
+    .crane-cable {
+      position: absolute;
+
+      width: 2px;
+
+      height: 190px;
+
+      right: 72px;
+      top: 23px;
+
+      background: #777;
+
+      animation:
+        cableSwing 3s
+        ease-in-out infinite;
+    }
+
+
+    @keyframes cableSwing {
+
+      0%,
+      100% {
+        transform: rotate(0deg);
+
+        transform-origin: top;
+      }
+
+      50% {
+        transform: rotate(3deg);
+
+        transform-origin: top;
+      }
+
+    }
+
+
+    .crane-hook {
+      position: absolute;
+
+      right: 62px;
+      top: 205px;
+
+      width: 22px;
+      height: 35px;
+
+      border-right: 3px solid #555;
+
+      border-bottom: 3px solid #555;
+
+      border-radius:
+        0 0 15px 0;
+
+      animation:
+        hookSwing 3s
+        ease-in-out infinite;
+    }
+
+
+    @keyframes hookSwing {
+
+      0%,
+      100% {
+        transform: rotate(0);
+      }
+
+      50% {
+        transform: rotate(-5deg);
+      }
+
+    }
+
+
+    /* =========================================================
+       COMPUTER / MAINTENANCE SCREEN
+    ========================================================= */
+
+    .screen {
+      position: absolute;
+
+      width: 350px;
+      height: 215px;
+
+      right: 95px;
+      bottom: 95px;
+
+      border: 10px solid #383838;
+
+      border-radius: 8px;
+
+      background: white;
+
+      box-shadow:
+        0 20px 35px rgba(0, 0, 0, 0.12);
+
+      z-index: 4;
+    }
+
+
+    .screen-content {
+      position: absolute;
+
+      inset: 0;
+
+      display: flex;
+
+      flex-direction: column;
+
+      align-items: center;
+
+      justify-content: center;
+
+      background:
+        linear-gradient(
+          135deg,
+          #fff,
+          #fff9f0
+        );
+    }
+
+
+    .screen-icon {
+      width: 45px;
+      height: 45px;
+
+      display: grid;
+
+      place-items: center;
+
+      background: var(--orange);
+
+      color: white;
+
+      border-radius: 12px;
+
+      font-size: 22px;
+
+      margin-bottom: 12px;
+
+      animation:
+        iconBounce 2s infinite;
+    }
+
+
+    @keyframes iconBounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-6px);
+      }
+
+    }
+
+
+    .screen-content h2 {
+      font-size: 25px;
+
+      color: var(--dark);
+
+      letter-spacing: 1px;
+
+      margin-bottom: 3px;
+    }
+
+
+    .screen-content span {
+      color: var(--orange);
+
+      font-size: 11px;
+
+      font-weight: 800;
+
+      letter-spacing: 2px;
+    }
+
+
+    .screen-progress {
+      position: absolute;
+
+      width: 70%;
+
+      height: 6px;
+
+      bottom: 25px;
+
+      background: #eee;
+
+      border-radius: 20px;
+
+      overflow: hidden;
+    }
+
+
+    .screen-progress::after {
+      content: "";
+
+      position: absolute;
+
+      width: 55%;
+
+      height: 100%;
+
+      left: 0;
+
+      top: 0;
+
+      background: var(--orange);
+
+      animation:
+        screenProgress 2s
+        ease-in-out infinite alternate;
+    }
+
+
+    @keyframes screenProgress {
+
+      from {
+        width: 35%;
+      }
+
+      to {
+        width: 75%;
+      }
+
+    }
+
+
+    /* =========================================================
+       MONITOR STAND
+    ========================================================= */
+
+    .screen-stand {
+      position: absolute;
+
+      width: 100px;
+      height: 55px;
+
+      right: 220px;
+      bottom: 40px;
+
+      background: #383838;
+
+      clip-path:
+        polygon(
+          30% 0,
+          70% 0,
+          100% 100%,
+          0 100%
+        );
+
+      z-index: 3;
+    }
+
+
+    .screen-base {
+      position: absolute;
+
+      width: 170px;
+      height: 12px;
+
+      right: 185px;
+      bottom: 29px;
+
+      background: #333;
+
+      border-radius: 10px;
+
+      z-index: 3;
+    }
+
+
+    /* =========================================================
+       WORKER
+    ========================================================= */
+
+    .worker {
+      position: absolute;
+
+      width: 115px;
+      height: 330px;
+
+      right: 35px;
+      bottom: 35px;
+
+      z-index: 8;
+
+      animation:
+        workerFloat 4s
+        ease-in-out infinite;
+    }
+
+
+    @keyframes workerFloat {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-4px);
+      }
+
+    }
+
+
+    .helmet {
+      position: absolute;
+
+      width: 55px;
+      height: 32px;
+
+      top: 5px;
+      left: 28px;
+
+      background: var(--orange);
+
+      border-radius:
+        30px 30px 8px 8px;
+    }
+
+
+    .helmet::after {
+      content: "";
+
+      position: absolute;
+
+      width: 70px;
+      height: 9px;
+
+      left: -8px;
+      bottom: -3px;
+
+      border-radius: 20px;
+
+      background: var(--orange-dark);
+    }
+
+
+    .head {
+      position: absolute;
+
+      width: 43px;
+      height: 52px;
+
+      left: 34px;
+      top: 28px;
+
+      border-radius: 45%;
+
+      background: #e6b18b;
+    }
+
+
+    .hair {
+      position: absolute;
+
+      width: 42px;
+      height: 22px;
+
+      left: 34px;
+      top: 26px;
+
+      background: #3b302b;
+
+      border-radius:
+        50% 50% 20% 20%;
+    }
+
+
+    .body {
+      position: absolute;
+
+      width: 70px;
+      height: 105px;
+
+      left: 20px;
+      top: 77px;
+
+      background:
+        linear-gradient(
+          90deg,
+          var(--orange),
+          #ffb348
+        );
+
+      border-radius:
+        14px 14px 8px 8px;
+    }
+
+
+    .vest-line {
+      position: absolute;
+
+      width: 7px;
+      height: 105px;
+
+      left: 31px;
+
+      background: rgba(255,255,255,0.7);
+
+      transform: rotate(18deg);
+    }
+
+
+    .arm {
+      position: absolute;
+
+      width: 18px;
+      height: 90px;
+
+      background: #e6b18b;
+
+      border-radius: 20px;
+    }
+
+
+    .arm-left {
+      left: 6px;
+      top: 82px;
+
+      transform:
+        rotate(25deg);
+    }
+
+
+    .arm-right {
+      right: 5px;
+      top: 80px;
+
+      transform:
+        rotate(-45deg);
+    }
+
+
+    .leg {
+      position: absolute;
+
+      width: 24px;
+      height: 105px;
+
+      background: #454545;
+
+      top: 173px;
+
+      border-radius: 10px;
+    }
+
+
+    .leg-left {
+      left: 28px;
+
+      transform:
+        rotate(4deg);
+    }
+
+
+    .leg-right {
+      right: 28px;
+
+      transform:
+        rotate(-7deg);
+    }
+
+
+    .shoe {
+      position: absolute;
+
+      width: 43px;
+      height: 16px;
+
+      background: #222;
+
+      border-radius: 20px;
+
+      bottom: 38px;
+    }
+
+
+    .shoe-left {
+      left: 12px;
+    }
+
+
+    .shoe-right {
+      right: 8px;
+    }
+
+
+    /* =========================================================
+       SAFETY CONE
+    ========================================================= */
+
+    .cone {
+      position: absolute;
+
+      width: 65px;
+      height: 95px;
+
+      left: 80px;
+      bottom: 35px;
+
+      z-index: 6;
+    }
+
+
+    .cone-body {
+      position: absolute;
+
+      width: 45px;
+      height: 75px;
+
+      left: 10px;
+
+      bottom: 10px;
+
+      background:
+        repeating-linear-gradient(
+          0deg,
+          var(--orange) 0,
+          var(--orange) 22px,
+          white 22px,
+          white 34px
+        );
+
+      clip-path:
+        polygon(
+          50% 0,
+          100% 100%,
+          0 100%
+        );
+    }
+
+
+    .cone-base {
+      position: absolute;
+
+      width: 65px;
+      height: 12px;
+
+      bottom: 0;
+
+      background: #444;
+
+      border-radius: 5px;
+    }
+
+
+    /* =========================================================
+       BARRICADE
+    ========================================================= */
+
+    .barricade {
+      position: absolute;
+
+      width: 180px;
+      height: 85px;
+
+      left: 205px;
+      bottom: 38px;
+
+      z-index: 7;
+    }
+
+
+    .bar {
+      position: absolute;
+
+      width: 170px;
+      height: 20px;
+
+      left: 5px;
+
+      background:
+        repeating-linear-gradient(
+          -45deg,
+          var(--orange) 0,
+          var(--orange) 18px,
+          white 18px,
+          white 36px
+        );
+
+      border: 2px solid #d7d7d7;
+
+      transform: rotate(-3deg);
+
+      box-shadow:
+        0 5px 10px rgba(0,0,0,0.08);
+
+      animation:
+        barricadeGlow 2s infinite;
+    }
+
+
+    .bar:nth-child(1) {
+      top: 10px;
+    }
+
+
+    .bar:nth-child(2) {
+      top: 48px;
+    }
+
+
+    @keyframes barricadeGlow {
+
+      0%,
+      100% {
+        filter: brightness(1);
+      }
+
+      50% {
+        filter: brightness(1.08);
+      }
+
+    }
+
+
+    .barricade-leg {
+      position: absolute;
+
+      width: 7px;
+      height: 65px;
+
+      background: #555;
+
+      bottom: -12px;
+    }
+
+
+    .barricade-leg.left {
+      left: 20px;
+
+      transform: rotate(10deg);
+    }
+
+
+    .barricade-leg.right {
+      right: 20px;
+
+      transform: rotate(-10deg);
+    }
+
+
+    /* =========================================================
+       GROUND
+    ========================================================= */
+
+    .ground {
+      position: absolute;
+
+      left: 0;
+      right: 0;
+
+      bottom: 20px;
+
+      height: 4px;
+
+      background: #ddd;
+
+      z-index: 2;
+    }
+
+
+    .ground::before {
+      content: "";
+
+      position: absolute;
+
+      width: 100%;
+
+      height: 1px;
+
+      top: 9px;
+
+      background: #eee;
+    }
+
+
+    /* =========================================================
+       SCROLL INDICATOR
+    ========================================================= */
+
+    .scroll-indicator {
+      position: absolute;
+
+      bottom: 35px;
+
+      left: 50%;
+
+      transform: translateX(-50%);
+
+      display: flex;
+
+      flex-direction: column;
+
+      align-items: center;
+
+      gap: 8px;
+
+      color: #aaa;
+
+      font-size: 9px;
+
+      letter-spacing: 2px;
+
+      text-transform: uppercase;
+
+      z-index: 10;
+    }
+
+
+    .scroll-arrow {
+      width: 20px;
+      height: 20px;
+
+      border-right: 2px solid var(--orange);
+
+      border-bottom: 2px solid var(--orange);
+
+      transform: rotate(45deg);
+
+      animation:
+        scrollBounce 1.5s infinite;
+    }
+
+
+    @keyframes scrollBounce {
+
+      0%,
+      100% {
+        transform:
+          rotate(45deg)
+          translate(0, 0);
+      }
+
+      50% {
+        transform:
+          rotate(45deg)
+          translate(5px, 5px);
+      }
+
+    }
+
+
+    /* =========================================================
+       PRODUCT SECTION
+    ========================================================= */
+
+    .product-section {
+      position: relative;
+
+      z-index: 3;
+
+      padding: 110px 20px;
+
+      background:
+        #fafafa;
+    }
+
+
+    .container {
+      width: min(1180px, 100%);
+
+      margin: auto;
+    }
+
+
+    .section-label {
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      color: var(--orange-dark);
+
+      font-size: 10px;
+
+      font-weight: 800;
+
+      letter-spacing: 2px;
+
+      text-transform: uppercase;
+
+      margin-bottom: 15px;
+    }
+
+
+    .section-label::before {
+      content: "";
+
+      width: 20px;
+      height: 2px;
+
+      background: var(--orange);
+    }
+
+
+    .section-title {
+      max-width: 750px;
+
+      color: var(--black);
+
+      font-size:
+        clamp(2.2rem, 5vw, 4rem);
+
+      line-height: 1;
+
+      letter-spacing: -3px;
+
+      margin-bottom: 20px;
+    }
+
+
+    .section-description {
+      max-width: 800px;
+
+      color: var(--gray);
+
+      font-size: 14px;
+
+      line-height: 1.9;
+
+      margin-bottom: 55px;
+    }
+
+
+    /* =========================================================
+       PRODUCT CARDS
+    ========================================================= */
+
+    .features {
+      display: grid;
+
+      grid-template-columns:
+        repeat(3, 1fr);
+
+      gap: 18px;
+    }
+
+
+    .feature {
+      position: relative;
+
+      padding: 30px;
+
+      background: white;
+
+      border: 1px solid #ebebeb;
+
+      border-radius: 14px;
+
+      min-height: 220px;
+
+      overflow: hidden;
+
+      transition:
+        transform 0.35s ease,
+        box-shadow 0.35s ease,
+        border-color 0.35s ease;
+    }
+
+
+    .feature:hover {
+      transform:
+        translateY(-8px);
+
+      border-color:
+        rgba(245, 154, 35, 0.35);
+
+      box-shadow:
+        0 25px 60px
+        rgba(0, 0, 0, 0.08);
+    }
+
+
+    .feature-number {
+      color: #ddd;
+
+      font-family: monospace;
+
+      font-size: 11px;
+
+      margin-bottom: 25px;
+    }
+
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+
+      display: grid;
+
+      place-items: center;
+
+      color: var(--orange-dark);
+
+      background: var(--orange-light);
+
+      border-radius: 10px;
+
+      font-weight: 900;
+
+      margin-bottom: 18px;
+    }
+
+
+    .feature h3 {
+      color: var(--black);
+
+      font-size: 17px;
+
+      margin-bottom: 10px;
+    }
+
+
+    .feature p {
+      color: var(--gray);
+
+      font-size: 12px;
+
+      line-height: 1.8;
+    }
+
+
+    .feature::after {
+      content: "";
+
+      position: absolute;
+
+      width: 100px;
+      height: 100px;
+
+      right: -45px;
+      bottom: -45px;
+
+      border-radius: 50%;
+
+      background:
+        rgba(245, 154, 35, 0.08);
+    }
+
+
+    /* =========================================================
+       TWO MODES
+    ========================================================= */
+
+    .modes-section {
+      padding: 110px 20px;
+
+      background: white;
+    }
+
+
+    .modes {
+      display: grid;
+
+      grid-template-columns:
+        repeat(2, 1fr);
+
+      gap: 20px;
+    }
+
+
+    .mode {
+      position: relative;
+
+      padding: 40px;
+
+      min-height: 310px;
+
+      border-radius: 18px;
+
+      overflow: hidden;
+
+      background:
+        linear-gradient(
+          135deg,
+          #fff8ec,
+          white
+        );
+
+      border: 1px solid #eee;
+    }
+
+
+    .mode:nth-child(2) {
+      background:
+        linear-gradient(
+          135deg,
+          #fff,
+          #fff8ec
+        );
+    }
+
+
+    .mode-tag {
+      display: inline-block;
+
+      padding: 7px 11px;
+
+      border-radius: 50px;
+
+      background: var(--orange-light);
+
+      color: var(--orange-dark);
+
+      font-size: 9px;
+
+      font-weight: 800;
+
+      letter-spacing: 1px;
+
+      margin-bottom: 25px;
+    }
+
+
+    .mode h3 {
+      font-size: 25px;
+
+      color: var(--black);
+
+      margin-bottom: 15px;
+    }
+
+
+    .mode p {
+      max-width: 480px;
+
+      color: var(--gray);
+
+      font-size: 13px;
+
+      line-height: 1.9;
+    }
+
+
+    .mode-decoration {
+      position: absolute;
+
+      right: 30px;
+      bottom: 25px;
+
+      font-size: 100px;
+
+      font-weight: 900;
+
+      color:
+        rgba(245, 154, 35, 0.08);
+
+      line-height: 1;
+
+      user-select: none;
+
+      animation:
+        decorationFloat 4s ease-in-out infinite;
+    }
+
+
+    @keyframes decorationFloat {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-12px);
+      }
+
+    }
+
+
+    /* =========================================================
+       TECHNOLOGY
+    ========================================================= */
+
+    .technology {
+      padding: 100px 20px;
+
+      background:
+        #fafafa;
+
+      text-align: center;
+    }
+
+
+    .technology .section-title {
+      margin-left: auto;
+
+      margin-right: auto;
+    }
+
+
+    .technology .section-description {
+      margin-left: auto;
+
+      margin-right: auto;
+    }
+
+
+    .tech-list {
+      display: flex;
+
+      justify-content: center;
+
+      flex-wrap: wrap;
+
+      gap: 10px;
+    }
+
+
+    .tech {
+      padding: 12px 17px;
+
+      border: 1px solid #e6e6e6;
+
+      background: white;
+
+      border-radius: 8px;
+
+      color: #666;
+
+      font-family: monospace;
+
+      font-size: 11px;
+
+      transition: 0.3s ease;
+    }
+
+
+    .tech:hover {
+      color: var(--orange-dark);
+
+      border-color:
+        rgba(245, 154, 35, 0.45);
+
+      transform:
+        translateY(-3px);
+
+      box-shadow:
+        0 10px 25px
+        rgba(245, 154, 35, 0.08);
+    }
+
+
+    /* =========================================================
+       FINAL CTA
+    ========================================================= */
+
+    .final-section {
+      padding: 110px 20px;
+
+      background: white;
+    }
+
+
+    .final-box {
+      position: relative;
+
+      overflow: hidden;
+
+      padding: 70px 60px;
+
+      border-radius: 22px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #fff5e5,
+          #ffffff
+        );
+
+      border: 1px solid #f1e4d2;
+
+      text-align: center;
+    }
+
+
+    .final-box::before {
+      content: "";
+
+      position: absolute;
+
+      width: 300px;
+      height: 300px;
+
+      border-radius: 50%;
+
+      right: -120px;
+      top: -120px;
+
+      background:
+        rgba(245, 154, 35, 0.08);
+    }
+
+
+    .final-box::after {
+      content: "";
+
+      position: absolute;
+
+      width: 250px;
+      height: 250px;
+
+      border-radius: 50%;
+
+      left: -130px;
+      bottom: -130px;
+
+      background:
+        rgba(245, 154, 35, 0.05);
+    }
+
+
+    .final-icon {
+      position: relative;
+
+      width: 65px;
+      height: 65px;
+
+      margin: 0 auto 25px;
+
+      display: grid;
+
+      place-items: center;
+
+      border-radius: 18px;
+
+      background: var(--orange);
+
+      color: white;
+
+      font-size: 25px;
+
+      box-shadow:
+        0 15px 35px
+        rgba(245, 154, 35, 0.25);
+
+      animation:
+        finalIcon 2s ease-in-out infinite;
+    }
+
+
+    @keyframes finalIcon {
+
+      0%,
+      100% {
+        transform: rotate(-3deg);
+      }
+
+      50% {
+        transform: rotate(3deg) scale(1.05);
+      }
+
+    }
+
+
+    .final-box h2 {
+      position: relative;
+
+      font-size:
+        clamp(2rem, 4vw, 3.5rem);
+
+      color: var(--black);
+
+      letter-spacing: -2px;
+
+      margin-bottom: 18px;
+    }
+
+
+    .final-box p {
+      position: relative;
+
+      max-width: 700px;
+
+      margin: auto;
+
+      color: var(--gray);
+
+      font-size: 13px;
+
+      line-height: 1.9;
+    }
+
+
+    /* =========================================================
+       FOOTER
+    ========================================================= */
+
+    footer {
+      padding: 28px 20px;
+
+      border-top: 1px solid #eee;
+
+      background: white;
+    }
+
+
+    .footer-inner {
+      width: min(1180px, 100%);
+
+      margin: auto;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      gap: 20px;
+    }
+
+
+    .footer-logo {
+      font-weight: 900;
+
+      letter-spacing: 1px;
+
+      font-size: 13px;
+    }
+
+
+    .footer-logo span {
+      color: var(--orange);
+    }
+
+
+    .footer-text {
+      color: #aaa;
+
+      font-size: 10px;
+
+      text-transform: uppercase;
+
+      letter-spacing: 1px;
+    }
+
+
+    /* =========================================================
+       RESPONSIVE
+    ========================================================= */
+
+    @media (max-width: 1000px) {
+
+      .hero {
+        grid-template-columns: 1fr;
+
+        padding-top: 30px;
+      }
+
+
+      .hero-content {
+        text-align: center;
+      }
+
+
+      .eyebrow {
+        justify-content: center;
+      }
+
+
+      .hero-description {
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+
+      .maintenance-box {
+        margin-left: auto;
+        margin-right: auto;
+
+        text-align: left;
+      }
+
+
+      .construction {
+        height: 520px;
+      }
+
+    }
+
+
+    @media (max-width: 750px) {
+
+      header {
+        height: 75px;
+      }
+
+
+      .header-status {
+        display: none;
+      }
+
+
+      .hero {
+        width: min(100% - 30px, 1180px);
+
+        padding-bottom: 80px;
+      }
+
+
+      .hero h1 {
+        font-size: 4rem;
+
+        letter-spacing: -4px;
+      }
+
+
+      .construction {
+        height: 450px;
+      }
+
+
+      .crane {
+        transform:
+          scale(0.78);
+
+        transform-origin:
+          right top;
+
+        right: -20px;
+      }
+
+
+      .screen {
+        transform:
+          scale(0.75);
+
+        transform-origin:
+          center;
+
+        right: 45px;
+      }
+
+
+      .worker {
+        transform:
+          scale(0.75);
+
+        transform-origin:
+          bottom right;
+
+        right: 0;
+      }
+
+
+      .features {
+        grid-template-columns: 1fr;
+      }
+
+
+      .modes {
+        grid-template-columns: 1fr;
+      }
+
+
+      .final-box {
+        padding:
+          50px 25px;
+      }
+
+
+      .footer-inner {
+        flex-direction: column;
+
+        align-items: flex-start;
+      }
+
+    }
+
+
+    @media (max-width: 480px) {
+
+      .hero h1 {
+        font-size: 3.2rem;
+
+        letter-spacing: -3px;
+      }
+
+
+      .hero-description {
+        font-size: 13px;
+      }
+
+
+      .construction {
+        height: 390px;
+      }
+
+
+      .crane {
+        transform:
+          scale(0.58);
+
+        right: -80px;
+
+        top: 15px;
+      }
+
+
+      .screen {
+        transform:
+          scale(0.58);
+
+        right: 15px;
+
+        bottom: 75px;
+      }
+
+
+      .worker {
+        transform:
+          scale(0.6);
+
+        right: -15px;
+      }
+
+
+      .cone {
+        transform:
+          scale(0.75);
+
+        left: 25px;
+      }
+
+
+      .barricade {
+        transform:
+          scale(0.65);
+
+        left: 100px;
+      }
+
+
+      .sun {
+        width: 75px;
+        height: 75px;
+
+        right: 30px;
+      }
+
+
+      .section-title {
+        letter-spacing: -2px;
+      }
+
+
+      .mode {
+        padding: 28px;
+      }
+
+    }
+
+  </style>
+</head>
+
+
+<body>
+
+  <div class="page">
+
+
+    <!-- =======================================================
+         FLOATING PARTICLES
+    ======================================================== -->
+
+    <div class="particles">
+
+      <div
+        class="particle"
+        style="left:5%;animation-duration:14s;animation-delay:-4s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:12%;animation-duration:19s;animation-delay:-10s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:24%;animation-duration:16s;animation-delay:-5s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:36%;animation-duration:21s;animation-delay:-12s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:48%;animation-duration:15s;animation-delay:-3s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:63%;animation-duration:20s;animation-delay:-9s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:74%;animation-duration:17s;animation-delay:-7s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:87%;animation-duration:22s;animation-delay:-14s"
+      ></div>
+
+      <div
+        class="particle"
+        style="left:94%;animation-duration:18s;animation-delay:-2s"
+      ></div>
+
+    </div>
+
+
+    <!-- =======================================================
+         HEADER
+    ======================================================== -->
+
+    <header>
+
+      <a href="#" class="logo">
+
+        <div class="logo-mark">
+          IB
+        </div>
+
+        <div class="logo-text">
+          INTELLI<span>BOT</span>
+        </div>
+
+      </a>
+
+
+      <div class="header-status">
+
+        <span class="status-light"></span>
+
+        Under Maintenance
+
+      </div>
+
+    </header>
+
+
+    <!-- =======================================================
+         HERO
+    ======================================================== -->
+
+    <section class="hero">
+
+
+      <!-- HERO TEXT -->
+
+      <div class="hero-content">
+
+        <div class="eyebrow">
+          System Upgrade In Progress
+        </div>
+
+
+        <h1>
+
+          Under
+
+          <br />
+
+          <span>Maintenance.</span>
+
+        </h1>
+
+
+        <p class="hero-description">
+
+          <strong>INTELLI BOT</strong> is getting smarter.
+
+          We're currently improving our AI discussion engine,
+          real-time group sessions, performance analysis and
+          learning experience.
+
+          <br /><br />
+
+          Our construction crew is working behind the scenes.
+          We'll be back with a better way to practise,
+          discuss and improve.
+
+        </p>
+
+
+        <!-- MAINTENANCE STATUS -->
+
+        <div class="maintenance-box">
+
+          <div class="maintenance-top">
+
+            <div class="maintenance-title">
+
+              <div class="maintenance-title-icon">
+                ⚙
+              </div>
+
+              Platform Upgrade
+
+            </div>
+
+
+            <div class="percentage">
+              <span id="percentage">0</span>%
+            </div>
+
+          </div>
+
+
+          <div class="progress">
+
+            <div class="progress-bar"></div>
+
+          </div>
+
+
+          <div class="maintenance-message">
+
+            We're optimizing AI evaluation,
+            WebRTC communication and session analytics.
+            Please check back soon.
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =====================================================
+           CONSTRUCTION VISUAL
+      ====================================================== -->
+
+      <div class="construction">
+
+
+        <!-- CLOUDS -->
+
+        <div class="cloud cloud-1"></div>
+
+        <div class="cloud cloud-2"></div>
+
+
+        <!-- SUN -->
+
+        <div class="sun"></div>
+
+
+        <!-- CRANE -->
+
+        <div class="crane">
+
+          <div class="crane-tower"></div>
+
+          <div class="crane-top"></div>
+
+          <div class="crane-cabin"></div>
+
+          <div class="crane-cable"></div>
+
+          <div class="crane-hook"></div>
+
+        </div>
+
+
+        <!-- COMPUTER -->
+
+        <div class="screen">
+
+          <div class="screen-content">
+
+            <div class="screen-icon">
+              ⚙
+            </div>
+
+            <h2>
+              UNDER
+            </h2>
+
+            <span>
+              MAINTENANCE
+            </span>
+
+
+            <div class="screen-progress"></div>
+
+          </div>
+
+        </div>
+
+
+        <div class="screen-stand"></div>
+
+        <div class="screen-base"></div>
+
+
+        <!-- WORKER -->
+
+        <div class="worker">
+
+          <div class="helmet"></div>
+
+          <div class="hair"></div>
+
+          <div class="head"></div>
+
+          <div class="body">
+
+            <div class="vest-line"></div>
+
+          </div>
+
+          <div class="arm arm-left"></div>
+
+          <div class="arm arm-right"></div>
+
+          <div class="leg leg-left"></div>
+
+          <div class="leg leg-right"></div>
+
+          <div class="shoe shoe-left"></div>
+
+          <div class="shoe shoe-right"></div>
+
+        </div>
+
+
+        <!-- SAFETY CONE -->
+
+        <div class="cone">
+
+          <div class="cone-body"></div>
+
+          <div class="cone-base"></div>
+
+        </div>
+
+
+        <!-- BARRICADE -->
+
+        <div class="barricade">
+
+          <div class="bar"></div>
+
+          <div class="bar"></div>
+
+          <div class="barricade-leg left"></div>
+
+          <div class="barricade-leg right"></div>
+
+        </div>
+
+
+        <!-- GROUND -->
+
+        <div class="ground"></div>
+
+
+      </div>
+
+
+      <!-- SCROLL -->
+
+      <div class="scroll-indicator">
+
+        Explore
+
+        <div class="scroll-arrow"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         PRODUCT DESCRIPTION
+    ======================================================== -->
+
+    <section class="product-section">
+
+      <div class="container">
+
+
+        <div class="section-label">
+          About The Product
+        </div>
+
+
+        <h2 class="section-title">
+
+          A smarter way to
+          <span style="color:var(--orange)">
+            practise discussions.
+          </span>
+
+        </h2>
+
+
+        <p class="section-description">
+
+          INTELLI BOT is a full-stack, AI-powered web application
+          designed for students and professionals who want to
+          practise and improve their Group Discussion skills.
+
+          The platform creates a structured, technology-driven
+          environment where users can participate in realistic
+          discussions, communicate with other participants,
+          receive AI-generated feedback and track their progress.
+
+          <br /><br />
+
+          Instead of relying only on informal practice,
+          INTELLI BOT combines Artificial Intelligence,
+          real-time communication, quantitative scoring and
+          peer evaluation to provide a complete GD preparation
+          experience.
+
+        </p>
+
+
+        <!-- FEATURES -->
+
+        <div class="features">
+
+
+          <article class="feature">
+
+            <div class="feature-number">
+              FEATURE / 01
+            </div>
+
+            <div class="feature-icon">
+              AI
+            </div>
+
+            <h3>
+              AI-Powered Practice
+            </h3>
+
+            <p>
+
+              Practise individually with an AI discussion partner
+              powered by Google Gemini. The AI generates topics,
+              responds to arguments and evaluates each speaking turn.
+
+            </p>
+
+          </article>
+
+
+          <article class="feature">
+
+            <div class="feature-number">
+              FEATURE / 02
+            </div>
+
+            <div class="feature-icon">
+              GD
+            </div>
+
+            <h3>
+              Live Group Discussions
+            </h3>
+
+            <p>
+
+              Join virtual rooms with other participants and
+              practise realistic discussions using live video,
+              audio and text communication.
+
+            </p>
+
+          </article>
+
+
+          <article class="feature">
+
+            <div class="feature-number">
+              FEATURE / 03
+            </div>
+
+            <div class="feature-icon">
+              ↗
+            </div>
+
+            <h3>
+              Performance Analytics
+            </h3>
+
+            <p>
+
+              Understand your communication performance through
+              measurable insights covering fluency, relevance,
+              confidence and filler-word usage.
+
+            </p>
+
+          </article>
+
+
+          <article class="feature">
+
+            <div class="feature-number">
+              FEATURE / 04
+            </div>
+
+            <div class="feature-icon">
+              ◎
+            </div>
+
+            <h3>
+              Peer Evaluation
+            </h3>
+
+            <p>
+
+              Participants can rate one another after sessions,
+              allowing users to understand how their communication
+              is perceived by other speakers.
+
+            </p>
+
+          </article>
+
+
+          <article class="feature">
+
+            <div class="feature-number">
+              FEATURE / 05
+            </div>
+
+            <div class="feature-icon">
+              ◴
+            </div>
+
+            <h3>
+              Session History
+            </h3>
+
+            <p>
+
+              Previous discussions, performance scores and streak
+              information are stored so users can monitor their
+              development over time.
+
+            </p>
+
+          </article>
+
+
+          <article class="feature">
+
+            <div class="feature-number">
+              FEATURE / 06
+            </div>
+
+            <div class="feature-icon">
+              ▣
+            </div>
+
+            <h3>
+              Learning Dashboard
+            </h3>
+
+            <p>
+
+              A centralized dashboard brings together aggregated
+              statistics and performance information into one
+              easy-to-understand view.
+
+            </p>
+
+          </article>
+
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         TWO MODES
+    ======================================================== -->
+
+    <section class="modes-section">
+
+      <div class="container">
+
+
+        <div class="section-label">
+          Practice Modes
+        </div>
+
+
+        <h2 class="section-title">
+
+          Two ways to
+          <span style="color:var(--orange)">
+            get better.
+          </span>
+
+        </h2>
+
+
+        <p class="section-description">
+
+          INTELLI BOT provides two complementary environments.
+          Users can build confidence individually with AI and
+          then test their skills in realistic multi-user
+          discussions.
+
+        </p>
+
+
+        <div class="modes">
+
+
+          <article class="mode">
+
+            <span class="mode-tag">
+              MODE 01
+            </span>
+
+            <h3>
+              Individual AI Session
+            </h3>
+
+            <p>
+
+              Practise alone against an intelligent AI discussion
+              partner. The system generates a relevant topic,
+              responds naturally to your arguments and evaluates
+              your speaking performance.
+
+              <br /><br />
+
+              This mode is designed to help improve confidence,
+              vocabulary, fluency and structured thinking before
+              entering a real group environment.
+
+            </p>
+
+            <div class="mode-decoration">
+              AI
+            </div>
+
+          </article>
+
+
+          <article class="mode">
+
+            <span class="mode-tag">
+              MODE 02
+            </span>
+
+            <h3>
+              Group Discussion Session
+            </h3>
+
+            <p>
+
+              Join a shared virtual room with other authenticated
+              participants. Each participant can communicate using
+              video and audio while a real-time chat system enables
+              text communication.
+
+              <br /><br />
+
+              After the discussion, participants can evaluate one
+              another and receive combined performance insights.
+
+            </p>
+
+            <div class="mode-decoration">
+              GD
+            </div>
+
+          </article>
+
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         TECHNOLOGY
+    ======================================================== -->
+<!-- 
+    <section class="technology">
+
+      <div class="container">
+
+
+        <div class="section-label">
+          Technology Stack
+        </div>
+
+
+        <h2 class="section-title">
+
+          Built with modern
+          <span style="color:var(--orange)">
+            web technology.
+          </span>
+
+        </h2>
+
+
+        <p class="section-description">
+
+          The application combines modern frontend architecture,
+          scalable backend services, persistent storage, AI
+          integration and real-time communication.
+
+        </p>
+
+
+        <div class="tech-list">
+
+          <div class="tech">
+            React 18
+          </div>
+
+          <div class="tech">
+            TypeScript
+          </div>
+
+          <div class="tech">
+            TanStack Router
+          </div>
+
+          <div class="tech">
+            Tailwind CSS
+          </div>
+
+          <div class="tech">
+            Node.js
+          </div>
+
+          <div class="tech">
+            Express.js
+          </div>
+
+          <div class="tech">
+            MongoDB
+          </div>
+
+          <div class="tech">
+            Socket.IO
+          </div>
+
+          <div class="tech">
+            WebRTC
+          </div>
+
+          <div class="tech">
+            Google Gemini
+          </div>
+
+          <div class="tech">
+            JWT
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+ -->
+    <!-- =======================================================
+         FINAL
+    ======================================================== -->
+<!-- 
+    <section class="final-section">
+
+      <div class="container">
+
+        <div class="final-box">
+
+
+          <div class="final-icon">
+            ⚒
+          </div>
+
+
+          <h2>
+            We're building something smarter.
+          </h2>
+
+
+          <p>
+
+            Our engineers are currently upgrading INTELLI BOT
+            to deliver a smoother AI experience, more reliable
+            group sessions and richer performance insights.
+
+            <br /><br />
+
+            <strong>
+              Thank you for your patience while we improve
+              the platform.
+            </strong>
+
+          </p>
+
+
+        </div>
+
+      </div>
+
+    </section> -->
+
+
+    <!-- =======================================================
+         FOOTER
+    ======================================================== -->
+
+    <footer>
+
+      <div class="footer-inner">
+
+        <div class="footer-logo">
+          INTELLI<span>BOT</span>
+        </div>
+
+        <div class="footer-text">
+          AI-powered group discussion platform
+        </div>
+
+        <div class="footer-text">
+          © 2026 INTELLI BOT
+        </div>
+
+      </div>
+
+    </footer>
+
+
+  </div>
+
+
+  <!-- =========================================================
+       JAVASCRIPT
+  ========================================================= -->
+
+  <script>
+
+
+    /* =========================================================
+       LIVE PERCENTAGE COUNTER
+    ========================================================= */
+
+    const percentage =
+      document.getElementById("percentage");
+
+
+    let current =
+      0;
+
+
+    const target =
+      76;
+
+
+    const counter =
+      setInterval(() => {
+
+        current++;
+
+        percentage.textContent =
+          current;
+
+        if (current >= target) {
+
+          clearInterval(counter);
+
+        }
+
+      }, 35);
+
+
+    /* =========================================================
+       MOUSE PARALLAX FOR CONSTRUCTION
+    ========================================================= */
+
+    const construction =
+      document.querySelector(".construction");
+
+
+    const crane =
+      document.querySelector(".crane");
+
+
+    const screen =
+      document.querySelector(".screen");
+
+
+    const worker =
+      document.querySelector(".worker");
+
+
+    construction.addEventListener(
+      "mousemove",
+      (event) => {
+
+        const rect =
+          construction.getBoundingClientRect();
+
+
+        const x =
+          (event.clientX - rect.left) /
+          rect.width -
+          0.5;
+
+
+        const y =
+          (event.clientY - rect.top) /
+          rect.height -
+          0.5;
+
+
+        crane.style.transform =
+          `translate(
+            ${x * -10}px,
+            ${y * -6}px
+          )`;
+
+
+        screen.style.transform =
+          `translate(
+            ${x * 8}px,
+            ${y * 5}px
+          )`;
+
+
+        worker.style.transform =
+          `translate(
+            ${x * -5}px,
+            ${y * -3}px
+          )`;
+
+      }
+    );
+
+
+    construction.addEventListener(
+      "mouseleave",
+      () => {
+
+        crane.style.transform = "";
+
+        screen.style.transform = "";
+
+        worker.style.transform = "";
+
+      }
+    );
+
+
+    /* =========================================================
+       RANDOM CONSTRUCTION PARTICLES
+    ========================================================= */
+
+    const particleContainer =
+      document.querySelector(".particles");
+
+
+    for (
+      let i = 0;
+      i < 15;
+      i++
+    ) {
+
+      const particle =
+        document.createElement("div");
+
+
+      particle.className =
+        "particle";
+
+
+      particle.style.left =
+        Math.random() * 100 + "%";
+
+
+      particle.style.animationDuration =
+        12 + Math.random() * 15 + "s";
+
+
+      particle.style.animationDelay =
+        -Math.random() * 15 + "s";
+
+
+      particle.style.width =
+        3 + Math.random() * 4 + "px";
+
+
+      particle.style.height =
+        particle.style.width;
+
+
+      particleContainer.appendChild(
+        particle
+      );
+
+    }
+
+
+    /* =========================================================
+       CONSOLE
+    ========================================================= */
+
+    console.log(
+      "%c INTELLI BOT ",
+      "background:#f59a23;color:#fff;font-weight:bold;padding:8px 14px;border-radius:5px;"
+    );
+
+
+    console.log(
+      "%c Platform maintenance mode active.",
+      "color:#df7f0d;font-weight:bold;"
+    );
+
+
+    console.log(
+      "AI Engine ................. UPGRADING"
+    );
+
+
+    console.log(
+      "WebRTC Communication ...... UPGRADING"
+    );
+
+
+    console.log(
+      "Performance Analytics ..... UPGRADING"
+    );
+
+
+  </script>
+
+</body>
+</html>

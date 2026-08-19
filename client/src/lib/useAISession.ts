@@ -70,7 +70,7 @@ export interface UseAISessionReturn {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? "").replace(/\/$/, "");
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
