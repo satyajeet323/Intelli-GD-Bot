@@ -172,7 +172,7 @@ function ReportPage() {
   const combinedScore = myReport?.combinedScore ?? myPeerData?.combinedScore ?? myReport?.overallScore ?? 0;
 
   return (
-    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6 animate-fade-in" style={{ background: "var(--ib-bg)" }}>
+    <div className="px-4 sm:px-8 py-8 pb-20 max-w-5xl mx-auto space-y-6 animate-fade-in" style={{ background: "var(--ib-bg)" }}>
 
       <Link to="/history" className="inline-flex items-center gap-1.5 transition-colors" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ib-muted)" }}>
         <ArrowLeft className="h-4 w-4" /> Back to history
@@ -184,7 +184,7 @@ function ReportPage() {
         style={{ background: "var(--ib-card)", border: "1px solid var(--ib-bdr)", borderLeft: "3px solid var(--ib-amber)" }}
       >
         <div className="ib-grid-bg" />
-        <div className="relative grid sm:grid-cols-[1fr,auto] gap-6 items-center">
+        <div className="relative z-10 grid sm:grid-cols-[1fr,auto] gap-6 items-center">
           <div>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--ib-amber)", marginBottom: "0.5rem" }}>
               Session Report
@@ -208,14 +208,14 @@ function ReportPage() {
 
         {/* Score bars */}
         {myReport && (
-          <div className="relative mt-6 space-y-3 max-w-lg">
+          <div className="relative z-10 mt-6 space-y-3 max-w-lg">
             <ScoreBar label="Fluency"    value={myReport.fluency} />
             <ScoreBar label="Relevance"  value={myReport.relevance} />
             <ScoreBar label="Confidence" value={myReport.confidence} />
           </div>
         )}
 
-        <div className="relative mt-6 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-6 flex flex-wrap gap-2">
           <button
             className="btn-primary"
             style={{ padding: "0.5rem 1.25rem", fontSize: "0.65rem" }}

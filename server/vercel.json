@@ -1,0 +1,5 @@
+{
+  "comment": "This Node.js server uses Socket.io, WebSockets, and long-running processes — it cannot run on Vercel Serverless Functions. Deploy to Railway, Render, or Fly.io instead.",
+  "buildCommand": "echo 'ERROR: Deploy this server to Railway/Render/Fly.io, not Vercel. See DEVELOPER_GUIDE.md'",
+  "outputDirectory": "."
+}

@@ -3,7 +3,7 @@
  * Uses a separate token key from the regular user token.
  */
 
-const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? "").replace(/\/$/, "");
 const ADMIN_TOKEN_KEY = "gdbot_admin_token";
 
 export function getAdminToken(): string | null {

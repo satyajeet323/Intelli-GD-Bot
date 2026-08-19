@@ -5,7 +5,7 @@
  * The Vite dev server also proxies /api → localhost:4000 as a fallback.
  */
 
-const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? "").replace(/\/$/, "");
 const TOKEN_KEY = "gdbot_token";
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
