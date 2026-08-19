@@ -3,7 +3,7 @@
  *
  * POST /api/chat/gd
  *
- * Uses Gemini (gemini-2.0-flash) for AI responses + per-turn scoring.
+ * Uses Gemini (gemini-3.7-flash) via new Interactions API for AI responses + per-turn scoring.
  * Groq removed — key was returning 403 Forbidden.
  * Returns 503 if Gemini fails — no local fallback.
  */
@@ -14,7 +14,7 @@ import { validate } from "../middleware/validate.js";
 import { countFillerWords, calculateOverallScore } from "../lib/scoreCalculator.js";
 
 const router  = Router();
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const TIMEOUT_MS = 12000;
 
 function buildSystemPrompt(topic) {
@@ -52,21 +52,28 @@ async function callGemini(apiKey, topic, messages) {
   const controller = new AbortController();
   const timer      = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const contents = messages.map((m) => ({
-      role:  m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    // Build full prompt with conversation history
+    let fullPrompt = buildSystemPrompt(topic) + "\n\n";
+    messages.forEach((m) => {
+      const speaker = m.role === "assistant" ? "AI" : "User";
+      fullPrompt += `${speaker}: ${m.content}\n`;
+    });
+    fullPrompt += "\nRespond with valid JSON containing 'reply' and 'scores' fields as specified.";
+
+    const res = await fetch(`${GEMINI_INTERACTIONS_URL}?key=${apiKey}`, {
       method:  "POST",
       signal:  controller.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: buildSystemPrompt(topic) }] },
-        contents,
-        generationConfig: {
-          maxOutputTokens:  400,
-          temperature:      0.8,
-          responseMimeType: "application/json",
+        model: "gemini-3.7-flash",
+        input: fullPrompt,
+        response_format: {
+          type: "text",
+          mime_type: "application/json"
+        },
+        generation_config: {
+          temperature: 0.8,
+          max_output_tokens: 400,
         },
       }),
     });
@@ -76,7 +83,7 @@ async function callGemini(apiKey, topic, messages) {
       throw new Error(`Gemini HTTP ${res.status}: ${body.slice(0, 100)}`);
     }
     const json = await res.json();
-    const raw  = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const raw  = json?.output_text ?? "";
     return JSON.parse(raw);
   } finally {
     clearTimeout(timer);

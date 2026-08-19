@@ -21,9 +21,8 @@ function getGroq() {
   return _groq;
 }
 
-// ── Gemini REST helper (reuses same pattern as topics.js) ─────────────────────
-const GEMINI_CHAT_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+// ── Gemini REST helper (using new Interactions API) ──────────────────────────
+const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
 async function callGeminiRest(systemPrompt, messages) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -34,34 +33,40 @@ async function callGeminiRest(systemPrompt, messages) {
     );
   }
 
-  // Build Gemini contents array from messages
-  const contents = messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
+  // Build a single input prompt combining system + conversation
+  let fullPrompt = systemPrompt + "\n\n";
+  messages.forEach((m) => {
+    const speaker = m.role === "user" ? "User" : "Assistant";
+    fullPrompt += `${speaker}: ${m.content}\n`;
+  });
+  fullPrompt += "\nAssistant:";
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20000);
 
   try {
-    const res = await fetch(`${GEMINI_CHAT_URL}?key=${apiKey}`, {
+    const res = await fetch(`${GEMINI_INTERACTIONS_URL}?key=${apiKey}`, {
       method: "POST",
       signal: controller.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        generationConfig: { maxOutputTokens: 350, temperature: 0.85 },
+        model: "gemini-3.7-flash",
+        input: fullPrompt,
+        generation_config: {
+          temperature: 0.85,
+          max_output_tokens: 350,
+        },
       }),
     });
     clearTimeout(timer);
     if (!res.ok) {
-      const err = new Error(`Gemini HTTP ${res.status}`);
+      const body = await res.text().catch(() => "");
+      const err = new Error(`Gemini HTTP ${res.status}: ${body.slice(0, 200)}`);
       err.status = res.status;
       throw err;
     }
     const json = await res.json();
-    return json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+    return json?.output_text?.trim() ?? "";
   } finally {
     clearTimeout(timer);
   }
