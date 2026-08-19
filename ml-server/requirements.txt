@@ -7,8 +7,8 @@ uvicorn[standard]==0.30.6
 python-multipart==0.0.12
 
 # ── ML / Audio ────────────────────────────────────────────────────────────────
-torch==2.2.0
-torchaudio==2.2.0
+torch==2.5.1
+torchaudio==2.5.1
 openai-whisper==20231117
 librosa==0.10.2
 soundfile==0.12.1
